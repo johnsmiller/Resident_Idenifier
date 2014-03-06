@@ -1,0 +1,397 @@
+package com.sjsurha.resident_identifier;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.concurrent.locks.Lock;
+import javax.swing.JOptionPane;
+
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+/**
+ *
+ * @author John
+ */
+
+//NOTE: THIS WILL BECOME A SUBCLASS OF MODEL AT DISTRIBUTION. CURRENTLY NOT SUBCLASS FOR EASE OF TESTING
+public final class Event implements Comparable<Event>, Serializable{
+    private static final long serialVersionUID = 1L;
+    
+    private String name;
+    private GregorianCalendar date_time;
+    private HashMap<String, GregorianCalendar> attendees; //Think about sorting by time (gregCal) of checkin to eliminate waitingList
+    private TreeMap<GregorianCalendar, String> waitinglist;
+    private boolean autoWaitlist; //Set if user wishes all future adds default to waiting list without asking
+    private int max_participants;
+    private TreeMap<String, Integer> tickets;
+    
+    /**
+     *
+     * @param Name
+     * @param DateTime
+     */
+    public Event(String Name, GregorianCalendar DateTime)
+    {
+        name = Name;
+        date_time = DateTime;
+        attendees = new HashMap<>(100);
+        waitinglist = new TreeMap<>();
+        max_participants = -1;
+        tickets = new TreeMap<>();
+    };
+    
+    /**
+     *
+     * @param Name
+     * @param Date_Time
+     * @param Max_Participants
+     */
+    public Event(String Name, GregorianCalendar Date_Time, int Max_Participants)
+    {
+        name = Name;
+        date_time = Date_Time;
+        attendees = new HashMap<>(Max_Participants);
+        waitinglist = new TreeMap<>();
+        max_participants = Max_Participants;
+        tickets = new TreeMap<>();
+    };
+    
+    //Thread-enabled search function. Passed a Storage container of events, Storage.add(this) if resident attended event
+        //Must lock Storage if adding since multiple events will be running this function simultaneously
+        //Elements sorted in storage automatically by date, so will be sorted when method exits
+            //Handle case of multiple events on same date/time
+    @Override
+    public String toString()
+    {
+        return (date_time.get(Calendar.MONTH)+1)+"/"+date_time.get(Calendar.DAY_OF_MONTH)+"/"+date_time.get(Calendar.YEAR)+" "+name;
+    }
+    
+    public boolean removeAttendee(String ID)
+    {
+        return(attendees.remove(ID)!= null);
+    }
+    
+    public String getLongDate()
+    {
+        return(date_time.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.US)
+                + " " + date_time.get(Calendar.DAY_OF_MONTH) 
+                + ", " + date_time.get(Calendar.YEAR));
+    }
+    
+    public String getShortDate()
+    {
+        return((date_time.get(Calendar.MONTH)+1)
+                + "/" + date_time.get(Calendar.DAY_OF_MONTH) 
+                + "/" + date_time.get(Calendar.YEAR));
+    }
+    
+    public String getTime()
+    {
+        return ((date_time.get(Calendar.HOUR)==0)? 12 : date_time.get(Calendar.HOUR))
+                + ":" + ((date_time.get(Calendar.MINUTE)<10)? "0" : "") + date_time.get(Calendar.MINUTE)
+                + " " + date_time.getDisplayName(Calendar.AM_PM, Calendar.LONG, Locale.US);
+    }
+    
+    public void addTickets(String ID, Integer tick)
+    {
+        if(tick<0){
+            if(tickets.containsKey(ID) && tickets.get(ID)>=tick)
+                tickets.put(ID, tickets.get(ID)+tick);
+            return;
+        }
+        if(tickets.containsKey(ID))
+            tickets.put(ID, tickets.get(ID)+tick);
+        else
+            tickets.put(ID, tick);
+    }
+    
+    public TreeMap<String,Integer> getTickets()
+    {
+        return tickets;
+    }
+    
+    public ArrayList<String> getTickets(boolean checkIn, boolean waitlist)
+    {
+        ArrayList<String> ret = new ArrayList<>();
+        ArrayList<String> keys = new ArrayList<>(tickets.keySet());
+        Iterator<String> itr = keys.iterator();
+        while(itr.hasNext())
+        {
+            String temp = itr.next();
+            for(int j = 0; j<tickets.get(temp); j++)
+                ret.add(temp);
+        }
+        if(checkIn)
+            ret.addAll(attendees.keySet());
+        if(waitlist)
+            ret.addAll(waitinglist.values());
+        return ret;
+    }
+    /**
+     *
+     * @param ID
+     * @return
+     * @throws CEDuplicateAttendeeException
+     * @throws CEMaxiumAttendeesException
+     */
+    public boolean validAttendee(String ID) throws CEDuplicateAttendeeException, CEMaxiumAttendeesException
+    {
+        boolean wait = false;
+        if(isAttendee(ID) || (wait = isWaitlisted(ID))){
+           GregorianCalendar time = attendees.get(ID);
+           if(wait){
+               ArrayList<String> temp = new ArrayList<>(waitinglist.values());
+               int loc = temp.indexOf(ID);
+               time = (GregorianCalendar)waitinglist.keySet().toArray()[loc];
+           }
+           int[] arr = getTimeDifference(time, new GregorianCalendar());
+           String message = "Resident already swiped in\n" + arr[0] + " Days " + arr[1] + " Hours " + arr[2] + " Minutes " + arr[3] + " Seconds ago\nRecheck in? (Previous time is discarded. This does not affect number of tickets)";
+           if(JOptionPane.showConfirmDialog(null, message, "Duplicate Resident", JOptionPane.OK_CANCEL_OPTION, JOptionPane.ERROR_MESSAGE) != JOptionPane.OK_OPTION)
+               throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
+           if(!wait){
+               attendees.put(ID, new GregorianCalendar());
+               return true;
+           }
+           else{
+               waitinglist.remove(time);
+               waitinglist.put(new GregorianCalendar(), ID);
+               return true;
+           }
+        } else if(maxAttendee() && !autoWaitlist)
+            throw new CEMaxiumAttendeesException("Event has maxium number of Residents Attending"); //Change to JDialog?
+        else if(maxAttendee() && autoWaitlist)
+            return addWaitlist(ID);
+        else 
+            return addAttendee(ID);        
+    }
+    
+    private int[] getTimeDifference(GregorianCalendar start, GregorianCalendar stop)
+    {
+        if(start.compareTo(stop)>0){
+            GregorianCalendar temp = start;
+            start = stop;
+            stop = temp;
+        }
+        double diff_seconds = (stop.getTimeInMillis() - start.getTimeInMillis())/1000.0;
+        int days = 0;
+        int hours = 0;
+        int minutes = 0;
+        int seconds = 0;
+        while(diff_seconds>=86400){
+            days++;
+            diff_seconds-=86400;
+        } 
+        while(diff_seconds>=3600){
+            hours++;
+            diff_seconds-=3600;
+        }
+        while(diff_seconds>=60){
+            minutes++;
+            diff_seconds-=60;
+        }
+        seconds = (int) diff_seconds;
+        int[] ret = {days,hours,minutes,seconds};
+        return ret;
+    }
+    
+    /**
+     *
+     * @param ID
+     * @return
+     */
+    public boolean isAttendee(String ID)
+    {
+        return attendees.containsKey(ID);
+    }
+    
+    public boolean isWaitlisted(String ID)
+    {
+        return waitinglist.containsValue(ID);
+    }
+    
+    public String Get_Details()
+    {
+        String ret = "Name: " + name + " \nDate: " 
+                + date_time.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.US) + ", " 
+                + getLongDate() + "\t" + getTime()
+                + " \nNumber of Attendees: " + attendees.size() + "\nWaiting List size: " 
+                + ((waitinglist!=null)? waitinglist.size():0)
+                + ((max_participants==-1)? "\nNo participant limit" : "\nMax Participants: " + max_participants);
+        
+        return ret;
+    }
+    
+    private boolean maxAttendee()
+    {
+        if(max_participants > -1)
+            return attendees.size()>=max_participants;
+        return false;
+    }
+    
+    private boolean addAttendee(String ID)
+    {
+        attendees.put(ID, new GregorianCalendar());
+        return true;
+    }
+    
+    private boolean addWaitlist(String ID)
+    {     
+        waitinglist.put(new GregorianCalendar(), ID);
+        return true;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public String getName() {
+        return name;
+    }
+    
+    /**
+     *
+     * @param name
+     */
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public GregorianCalendar getDateTime() {
+        return date_time;
+    }
+
+    /**
+     *
+     * @param dateTime
+     */
+    public void setDateTime(GregorianCalendar dateTime) {
+        this.date_time = dateTime;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public HashMap<String, GregorianCalendar> getAttendees() {
+        return attendees;
+    }
+
+    /*Security Risk? Needed?
+     * public void setAttendees(HashSet<String> attendees) {
+      //  this.attendees = attendees;
+    }*/
+
+    /**
+     *
+     * @return
+     */
+    public int getMaxParticipants() {
+        return max_participants;
+    }
+
+    /**
+     *
+     * @param maxParticipants
+     */
+    public void setMaxParticipants(int maxParticipants) {
+        this.max_participants = maxParticipants;
+    }
+
+    /**
+     *
+     * @return
+     */
+    public TreeMap<GregorianCalendar, String> getWaitinglist() {
+        return waitinglist;
+    }
+    
+    /**
+     *
+     * @param autoWaitlist
+     */
+    public void setAutoWaitlist(boolean autoWaitlist)
+    {
+        this.autoWaitlist = autoWaitlist;
+    }
+
+    @Override
+    public int compareTo(Event e) 
+    {
+        if(e.getDateTime().compareTo(date_time) == 0)
+            return name.compareTo(e.getName());
+        return e.getDateTime().compareTo(date_time);
+    }
+    
+    /**
+     *
+     * @param g
+     * @return
+     */
+    public int compareTo(GregorianCalendar g)
+    {
+        return date_time.compareTo(g);
+    }
+    
+    /**
+     *
+     * @param ID
+     * @param Results
+     * @param lock
+     * @return
+     */
+    public Runnable search(String ID, TreeSet<Event> Results, Lock lock)
+    {
+        return new Searcher(this, ID, Results, lock);
+    }
+
+    /**
+     *
+     */
+    public class Searcher implements Runnable
+    {
+        private final Event parent;
+        private final String id;
+        private final TreeSet<Event> results;
+        private final Lock resultsLock;
+        /**
+         *
+         * @param Parent
+         * @param ID
+         * @param Results
+         * @param ResultsLock
+         */
+        public Searcher(Event Parent, String ID, TreeSet<Event> Results, Lock ResultsLock)
+        {
+            parent = Parent;
+            id = ID;
+            results = Results;
+            resultsLock = ResultsLock;
+        }
+
+        @Override
+        public void run() {
+            if(attendees.containsKey(id) || waitinglist.containsValue(id)){
+                resultsLock.lock();
+                try{
+                    results.add(parent);
+                }
+                finally{
+                    resultsLock.unlock();
+                }
+            }
+        }
+    }
+}
