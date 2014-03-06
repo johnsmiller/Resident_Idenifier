@@ -36,6 +36,10 @@ public class main {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);
             JOptionPane.showMessageDialog(null, "ERROR: Decryption has failed. Most likely caused by an invalid password. Please try again. Program will now exit.", "Decryption Failure", JOptionPane.ERROR_MESSAGE);
             System.exit(0);
+        } catch (CEAuthenticationFailedException ex) {
+            Logger.getLogger(main.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(null, "ERROR: Database was not initialized with an Admin. Please try again. Program will now exit.", "Database Failure", JOptionPane.ERROR_MESSAGE);
+            System.exit(0);
         }
         if(temp == null)
             System.exit(0);

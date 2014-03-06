@@ -45,13 +45,13 @@ public final class ViewerController implements Runnable{
      * 
      * @throws CEEncryptionErrorException - Thrown if Encryption/Decryption fails due to bad/no password or if internal error (bad algorithm, etc);
      */
-    public ViewerController() throws CEEncryptionErrorException
+    public ViewerController() throws CEEncryptionErrorException, CEAuthenticationFailedException
     {
         try {
             initialize();
             unseal();
         } catch (FileNotFoundException ex) {
-            model = new Model();
+                model = new Model();
         } finally {
             autosaveThread();
             //model.importEvents();
@@ -113,7 +113,7 @@ public final class ViewerController implements Runnable{
           return;
         }
         catch(ClassNotFoundException | IOException ex){
-            JOptionPane.showMessageDialog(null, "ERROR: Unable to read previous data. Assuming first time run. All data has been lost.", "Decryption Failure", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "ERROR: Unable to read previous data. Assuming first time run. All data has been lost. \nPlease create a new admin on the next screen", "Decryption Failure", JOptionPane.ERROR_MESSAGE);
             throw new FileNotFoundException("Previous data unreadable. Attempting to create new file");
         } catch (IllegalBlockSizeException | BadPaddingException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);

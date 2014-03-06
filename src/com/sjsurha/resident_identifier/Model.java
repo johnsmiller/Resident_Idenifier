@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.GregorianCalendar;
@@ -40,7 +41,6 @@ import javax.swing.event.ListDataListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -68,7 +68,7 @@ public final class Model implements Serializable{
     private final HashSet<String> admins;
     private File previous_excel_path;
     
-    //User & Admin function trackers (static members not set upon model restore)
+    //Security function variables (static members reset upon model restore)
     private Integer user_requests;
     private static Long last_user_request;
     private final double TIME_DIFFERENCE_TOLERANCE = 15.0*1000000000; //time (in nanoseconds) that is valid to have USER_REQUEST_TOLERANCE requests within
@@ -87,12 +87,12 @@ public final class Model implements Serializable{
     private final int SAMPLE_COLUMNS = 30; //Number of columns to pull for user sample
     private final int SAMPLE_ROWS = 30; //Number of rows to pull for user sample
     private final int SKIP_ROW_COUNT = 14; //Number of cells to skip before pulling data for user sample
-    //private final String[] INVALID_ID_STRINGS = {"", "CLOSED"}; //Strings that indicate the current row is not a resident
+    private final String[] INVALID_ID_STRINGS = {"", "CLOSED"}; //Strings that indicate the current row is not a resident
       
     /**
      *
      */
-    protected Model()
+    protected Model() throws CEAuthenticationFailedException
     {
         events = new EventTreeSet_TableModel_ComboBoxModel();
         previous_excel_path = null;
@@ -102,8 +102,9 @@ public final class Model implements Serializable{
         last_admin_request = (long)-1;
         admins = new HashSet<>();
         consecutive_failed_attempts = 0;
-        admins.add(";00817196911?"); //Allows other admins to be added
-        importEvents();
+        if(!adminCreationPopup()) //Adds an admin to ensure administrative functions are operational at run-time
+            throw new CEAuthenticationFailedException("Database requires at least 1 Administrator to function");
+        importEvents(); //Temporary until 'Import Database' Function under Edit Database is fully functional
     }
     
     static
@@ -439,7 +440,49 @@ public final class Model implements Serializable{
     
         
     //ADMIN-FUNCTIONS 
-        //Admin validation is required for each task and for each instance
+    
+    private boolean addAdmin(String ID)
+    {
+        return admins.add(ID);
+    }
+    
+    /**
+     *
+     * @return
+     * @throws AuthenticationFailedException
+     */
+    protected boolean adminCreation()
+    {
+        return(Admin_Authentication_Popup()&&adminCreationPopup());
+    }
+    
+    /**
+     * Used for creating a new database administrator to allow them to
+     * preform administrative functions
+     * 
+     * This method is called when the user requests to create a new admin
+     * as well as when the database is initially created.
+     * @return 
+     */
+    
+    private boolean adminCreationPopup()
+    {
+        String ID1 = (String)JOptionPane.showInputDialog(null,"Please swipe new Admin's ID card:", "New Admin",JOptionPane.QUESTION_MESSAGE);
+        String ID2 = (String)JOptionPane.showInputDialog(null,"Please reswipe new Admin's ID card:", "New Admin",JOptionPane.QUESTION_MESSAGE);
+        if(ID1 != null && ID2 != null && ID1.equals(ID2)){
+            if(addAdmin(ID1)){
+                JOptionPane.showMessageDialog(null, "New Admin Created Successfully", "New Admin Added", JOptionPane.INFORMATION_MESSAGE);
+                return true;
+            }
+            else{
+                JOptionPane.showMessageDialog(null, "An error occured while adding the new Admin. \nMost likely, this person is already an Admin", "Admin Creation Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+        else {
+            JOptionPane.showMessageDialog(null, "The two card readings do not match. Please try again.", "Admin Creation Error", JOptionPane.ERROR_MESSAGE);
+        }
+        return false;
+    }
     
     protected int adminCount()
     {
@@ -453,19 +496,14 @@ public final class Model implements Serializable{
     private boolean validateAdmin(String ID)
     {
         synchronized(admins){return(admins.contains(ID));}
-    }
-    
-    
-    private boolean addAdmin(String ID)
-    {
-        return admins.add(ID);
-    }
+    }    
     
     /**
      *
      * @return
      * @throws AuthenticationFailedException
      */
+    
     protected boolean Admin_Authentication_Popup()
     {
         if(checkAdminTolerance())
@@ -494,35 +532,8 @@ public final class Model implements Serializable{
         return (last_admin_request != -1 && System.nanoTime()-last_admin_request<=ADMIN_VERIFICATION_TOLERANCE);
     }
     
-    /**
-     *
-     * @return
-     * @throws AuthenticationFailedException
-     */
-    protected boolean adminCreation()
-    {
-        if(Admin_Authentication_Popup())
-        {
-            String ID1 = (String)JOptionPane.showInputDialog(null,"Please swipe new Admin's ID card:", "New Admin",JOptionPane.QUESTION_MESSAGE);
-            String ID2 = (String)JOptionPane.showInputDialog(null,"Please reswipe new Admin's ID card:", "New Admin",JOptionPane.QUESTION_MESSAGE);
-            if(ID1 != null && ID2 != null && ID1.equals(ID2)){
-                if(addAdmin(ID1)){
-                    JOptionPane.showMessageDialog(null, "New Admin Created Successfully", "New Admin Added", JOptionPane.INFORMATION_MESSAGE);
-                    return true;
-                }
-                else{
-                    JOptionPane.showMessageDialog(null, "An error occured while adding the new Admin. \nMost likely, this person is already an Admin", "Admin Creation Error", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-            else if(ID1 != null && ID2 != null){
-                JOptionPane.showMessageDialog(null, "The two card readings do not match. Please try again.", "Admin Creation Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
-        return false;
-    }
-
-    
     //Resident Functions
+    
     protected boolean addResident(String ID, String lastName, String firstName, String bedSpace)
     {
         if(Admin_Authentication_Popup())
@@ -681,7 +692,7 @@ public final class Model implements Serializable{
 
                 IDString = (IDCell != null)? IDCell.getStringCellValue() : null;
 
-                if(IDString != null && IDString.length()==ID_CELL_LENGTH /*&& (Arrays.binarySearch(INVALID_ID_STRINGS, IDString)<0)*/)
+                if(IDString != null && IDString.length()==ID_CELL_LENGTH && (Arrays.binarySearch(INVALID_ID_STRINGS, IDString)<0))
                 {
                     try{
                         IDString = currentRow.getCell(ID_COLUMN_NUMBER).getStringCellValue();
