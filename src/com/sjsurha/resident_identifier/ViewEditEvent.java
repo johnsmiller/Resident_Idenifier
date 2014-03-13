@@ -45,7 +45,7 @@ public final class ViewEditEvent extends JPanel
         
         model = ModelIn;
 
-        eventCombobox = new JComboBox(model.getEvents());
+        eventCombobox = model.getEventsJComboBox();
         eventCombobox.setMaximumSize(new Dimension(Integer.MAX_VALUE,24));
         eventCombobox.addActionListener(updateFieldsActionListener());//add actionlistener to update name/date/time/maxparticipant fields as selection changes
         this.add(eventCombobox);

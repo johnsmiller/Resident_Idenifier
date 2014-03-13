@@ -238,7 +238,7 @@ public final class ViewerController implements Runnable{
     @Override
     public void run() {
         try {
-            model.getEvents().removeAllListeners();
+            model.removeAllEventListeners();
             seal();
         } catch (IOException | CEEncryptionErrorException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);

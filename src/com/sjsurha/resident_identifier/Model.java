@@ -30,6 +30,7 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ComboBoxModel;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JRadioButton;
@@ -191,6 +192,20 @@ public final class Model implements Serializable{
         return events.add(event);
     }
     
+    /**
+     * The model is required to implement this function due to the fact that
+     * it changes data the event collection uses to sort events.
+     * To ensure proper ordering, the event is removed, modified, and
+     * reinserted as a new event
+     * 
+     * @param event the event to be removed
+     * @param name the new name of the event (can be the original name)
+     * @param dateTime the new date/time of the object (can be original date)
+     * @param maxAttendees the new maxAttendees (can be original maxAttendees, 
+     * cannot be less than the current number of attendees
+     * @return true if the adding of the modified event was successful, false 
+     * if not successful
+     */
     protected synchronized boolean updateEvent(Event event, String name, GregorianCalendar dateTime, int maxAttendees)
     {
             removeEvent(event);
@@ -268,14 +283,64 @@ public final class Model implements Serializable{
     }
     
     /**
-     *
-     * @return
+     * Returns a JComboBox that uses the Events collection as a 
+     * ComboBoxModel
+     * 
+     * Future implementation will disallow accessing the getModel function of
+     * this JComboBox
+     * 
+     * @return JComboBox based off the events collection
      */
-    protected EventTreeSet_TableModel_ComboBoxModel getEvents()
+    
+    protected JComboBox getEventsJComboBox()
     {
-        return events;
+        return new JComboBox(events);
     }
     
+    /**
+     * Returns a JTable that uses the Events collection as a
+     * JTableModel
+     * 
+     * Future implementation will disallow accessing the getModel function of
+     * this JTable
+     * 
+     * @return JTable based off the events collection
+     */
+    
+    protected JTable getEventsJTable()
+    {
+        JTable ret = new JTable();
+        ret.setModel(events);
+        return ret;
+    }
+    
+    /**
+     * Standardized way of returning the size of the events collection across
+     * different model implementations 
+     * 
+     * @return an integer equal to the number of events in database
+     */
+    protected int eventCount()
+    {
+        return events.size();
+    }
+    
+    /**
+     * Ensures clean program exit by discarding all listener threads
+     * in the event collection
+     */
+    protected void removeAllEventListeners()
+    {
+        events.removeAllListeners();
+    }
+    
+    
+    /**
+     * Development function to assist in maintaining the live database
+     * while project is still evolving. 
+     * 
+     * Used when model changes invalidate previous saved/encrypted model
+     */
     private void importEvents()
     {
         try {
@@ -290,6 +355,17 @@ public final class Model implements Serializable{
         }
     }
     
+    /**
+     * This functionality will soon be moved to the Event class
+     * Formats an event's attendees list into an Object 2-dimensional
+     * array for use in a JTable.
+     * 
+     * Assumed Columns: Check-in Time, Student ID, Last Name, 
+     * First Name, Bedspace, Tickets
+     * 
+     * @param e the event whose attendees list is to be formatted
+     * @return a two-dimensional array formatted for display in a JTable
+     */
     protected Object[][] getEventAttendeeJTable(Event e)
     {
         //String[] columnNames = {"Check-in", "ID", "Last Name", "First Name", "Bedspace", "Tickets"};
@@ -311,6 +387,17 @@ public final class Model implements Serializable{
         return ret;
     }
     
+    /**
+     * This functionality will soon be moved to the Event class
+     * Formats an event's waitlist into an Object 2-dimensional
+     * array for use in a JTable.
+     * 
+     * Assumed Columns: Check-in Time, Student ID, Last Name, 
+     * First Name, Bedspace, Tickets
+     * 
+     * @param e the event whose waitlist is to be formatted
+     * @return a two-dimensional array formatted for display in a JTable
+     */
     protected Object[][] getEventWaitlistJTable(Event e)
     {
         //String[] columnNames = {"Check-in", "ID", "Last Name", "First Name", "Bedspace", "Tickets"};
@@ -334,10 +421,12 @@ public final class Model implements Serializable{
     }
     
     /**
+     * Early and arbitrary implementation.
+     * Returns an ArrayList of all Events in the specified range (inclusive)
      *
-     * @param fromDate
-     * @param toDate
-     * @return
+     * @param fromDate the beginning date to search from (inclusive)
+     * @param toDate the end date to search to (exclusive)
+     * @return an ArrayList of Events 
      */
     protected ArrayList<Event> getEventsByDateRange(GregorianCalendar fromDate, GregorianCalendar toDate)
     {
@@ -357,10 +446,18 @@ public final class Model implements Serializable{
     }
     
     /**
-     *
-     * @param fromDate
-     * @param toDate
-     * @return
+     * Early and arbitrary implementation that returns various statistics over 
+     * a specified range of dates (inclusive) as a String ArrayList
+     * 
+     * The current data returned includes:
+     * Total events in the specified range, 
+     * Most attended event (date, time, and number of attendees), 
+     * Total number of residents (including duplicates)
+     * Total number of unique resident (no duplicates)
+     * 
+     * @param fromDate the beginning date to start searching from (inclusive)
+     * @param toDate the end date of search (inclusive)
+     * @return an ArrayList of strings with the specified data
      */
     protected ArrayList<String> getEventStatisticsByDateRange(GregorianCalendar fromDate, GregorianCalendar toDate)
     {
@@ -393,7 +490,7 @@ public final class Model implements Serializable{
         if(numOfEvents!=0){
             ret.add("The following statistics apply to events recorded from " + fromDate.getDisplayName(Calendar.MONTH,Calendar.LONG, Locale.ENGLISH)+" "+fromDate.getDisplayName(Calendar.DAY_OF_MONTH,Calendar.LONG, Locale.ENGLISH)+", "+fromDate.getDisplayName(Calendar.YEAR,Calendar.LONG, Locale.ENGLISH) + " to " + toDate.getDisplayName(Calendar.MONTH,Calendar.LONG, Locale.ENGLISH)+" "+toDate.getDisplayName(Calendar.DAY_OF_MONTH,Calendar.LONG, Locale.ENGLISH)+", "+toDate.getDisplayName(Calendar.YEAR,Calendar.LONG, Locale.ENGLISH));
             ret.add("Total Events in date range: " + numOfEvents);
-            ret.add("Most attended event: "+maxAttended.getName()+" on "+maxAttended.getDateTime().getDisplayName(Calendar.MONTH,Calendar.LONG, Locale.ENGLISH)+" "+maxAttended.getDateTime().getDisplayName(Calendar.DAY_OF_MONTH,Calendar.LONG, Locale.ENGLISH)+", "+maxAttended.getDateTime().getDisplayName(Calendar.YEAR,Calendar.LONG, Locale.ENGLISH)+" with " + maxAttendees);
+            ret.add("Most attended event: " + maxAttended.getName() + " on " + maxAttended.getLongDate() + " " + maxAttended.getTime() + " with " + maxAttendees);
             ret.add("Total number of Residents for all events: " + totalAttendees);
             ret.add("Total number of Individual Residents who attended at least one event: " + individualAttendees.size());
         }
@@ -401,11 +498,18 @@ public final class Model implements Serializable{
     }
     
     /**
-     *
-     * @param event
-     * @return
+     * Model's implementation to handle an event that has reached its maximum 
+     * number of attendees.
+     * 
+     * Allows a user to 
+     * a) increase (or disable) the max attendee limit 
+     * b) start a waiting list for this event, 
+     * c) Do nothing. If a resident sign-in triggered this function, the resident will not be added
+     * 
+     * @param event the event that has reached its maximum capacity
+     * @return true if waitlist or increased attendees, false if bad authenication or user decides not to increase/activate max/waitlist
      */
-    protected boolean maxAttendeeHandler(Event event) //true if waitlist or increased attendees, false if bad authenication or user decides not to increase/activate max/waitlist
+    protected boolean maxAttendeeHandler(Event event) 
     {
         JTextField increaseBy = new JTextField();
         JRadioButton increase = new JRadioButton("Increase the limit (current limit: " + event.getMaxParticipants() + "). Increase limit by: ");
@@ -441,14 +545,30 @@ public final class Model implements Serializable{
         
     //ADMIN-FUNCTIONS 
     
+    /**
+     * Private function to ensure adding an admin is standardized between 
+     * changing model implementations
+     * 
+     * New administrator's ID is directly added without removing any 
+     * additional input or symbols. This could cause issues across
+     * different program input hardware (magnetic reader vs barcode
+     * scanner)
+     * 
+     * @param ID the new Administrator's ID
+     * @return 
+     */
+    
     private boolean addAdmin(String ID)
     {
         return admins.add(ID);
     }
     
     /**
-     *
-     * @return
+     * Used to add new Administrators to the database
+     * 
+     * An existing admin is required to authenticate before adding the new admin
+     * 
+     * @return true if an existing admin is authenticated and a new admin is created
      * @throws AuthenticationFailedException
      */
     protected boolean adminCreation()
@@ -462,7 +582,7 @@ public final class Model implements Serializable{
      * 
      * This method is called when the user requests to create a new admin
      * as well as when the database is initially created.
-     * @return 
+     * @return true if the new admin is created
      */
     
     private boolean adminCreationPopup()
@@ -484,6 +604,13 @@ public final class Model implements Serializable{
         return false;
     }
     
+    /**
+     * Used to standardize retrieving total number of admins in database
+     * across different model implementations
+     * 
+     * @return the total number of separate admins registered
+     */
+    
     protected int adminCount()
     {
         synchronized(admins){
@@ -493,15 +620,26 @@ public final class Model implements Serializable{
         }
     }
     
+    /**
+     * Private function used to standardize validating admins across
+     * different model implementations
+     * 
+     * @param ID the ID to check against all registered admins
+     * @return true if the input ID is a registered admin
+     */
+    
     private boolean validateAdmin(String ID)
     {
         synchronized(admins){return(admins.contains(ID));}
     }    
     
     /**
-     *
-     * @return
-     * @throws AuthenticationFailedException
+     * Model's implementation to validate for an administrative function
+     * Function itself is not synchronized for efficiency's sake
+     * Critical function areas after user input are synchronized
+     * 
+     * @return true if the user was authenticated, false if user canceled out
+     * of the dialog, safely exits program if more than 5 failed attempts.
      */
     
     protected boolean Admin_Authentication_Popup()
@@ -662,22 +800,22 @@ public final class Model implements Serializable{
             
             Object[] message = {"Please select ONE cell that contains a user ID", scoller};
             if(JOptionPane.showConfirmDialog(null, message, "Select ID", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return;
+                return; //Error message please
             ID_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
 
             Object[] message2 = {"Please select ONE cell that contains a LAST name",scoller};
             if(JOptionPane.showConfirmDialog(null, message2, "Select Last Name", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return;
+                return; //Error message please
             LAST_NAME_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
 
             Object[] message3 = {"Please select ONE cell that contains a FIRST name",scoller};
             if(JOptionPane.showConfirmDialog(null, message3, "Select First Name", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return;
+                return; //Error message please
             FIRST_NAME_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
 
             Object[] message4 = {"Please select ONE cell that contains a BedSpace (ex: CVA-000)",scoller};
             if(JOptionPane.showConfirmDialog(null, message4, "Select Bed Space", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return;
+                return; //Error message please
             BEDSPACE_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
 
             for(Iterator<Row> rowIterator = sheet.iterator(); rowIterator.hasNext(); ) 
@@ -709,243 +847,8 @@ public final class Model implements Serializable{
         {
         }
     }
-    
-    /**
-     * TreeSet<Event> class that implements the TableModel and ComboBoxModel interfaces
-     */
-    public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implements TableModel, ComboBoxModel<Event>
-    {
-        private static final long serialVersionUID = 1L;
-        private final String[] headers = {"Select", "Event Date", "Event Name", "Attendees", "Waitlisted"};
-        private boolean[] tableBooleanSelection;
-        private HashSet<TableModelListener> tableModelListeners;
-        private HashSet<ListDataListener> comboBoxModelListDataListeners;
-        Event[] modelEventArray;
-        private Object comboBoxModelSelectedItem;
-        
-        public EventTreeSet_TableModel_ComboBoxModel()
-        {
-            super();
-            tableBooleanSelection = new boolean[0];
-            tableModelListeners = new HashSet<>(5);
-            comboBoxModelListDataListeners = new HashSet<ListDataListener>(10);
-            modelEventArray = this.toArray(new Event[super.size()]);
-        }
-        
-         @Override
-        public boolean add(Event e)  //Modify to take in Authenication ID for future logging function
-        {
-            if(super.add(e)) {
-                comboBoxModelSelectedItem = e;
-                modelListenersNotify();
-                return true;
-            }
-            return false;
-        }
-        
-        @Override
-        public boolean remove(Object o) //Modify to take in Authenication ID for future logging function
-        {
-            if(super.remove(o)){
-                if(comboBoxModelSelectedItem.equals(o))
-                    comboBoxModelSelectedItem = ((this.size()>0)? this.first() : null);
-                modelListenersNotify();
-                return true;
-            }
-            return false;
-        }
-        
-        @Override
-        public boolean addAll(Collection<? extends Event> c) //Modify to take in Authenication ID for future logging function
-        {
-            if(super.addAll(c)){
-                modelListenersNotify();
-                return true;
-            }
-            return false;  
-        }
-        
-        
-        
-        @Override
-        public void clear() //Modify to take in Authenication ID for future logging function
-        {
-            super.clear();
-        }
-        
-        /*
-         * Ensures all implemented interfaces' listeners are notified if model data changes
-         */
-        
-        private void modelListenersNotify()
-        {
-            modelEventArray = this.toArray(new Event[this.size()]);
-            notifyTableModelChange();
-            notifyComboBoxModelChange(0, this.size()-1);
-        }
-        
-        /**
-         * Ensures all implemented interfaces' listeners are notified if model data changes
-         * @param index0 beginning index of change
-         * @param index1 ending index of change
-         */
-        
-        private void modelListenersNotify(int index0, int index1)
-        {
-            modelEventArray = this.toArray(new Event[this.size()]);
-            notifyTableModelChange(index0, index1);
-            notifyComboBoxModelChange(index0, index1);
-            
-        }
-        
-        
-        /**
-         * Removes all model listeners to ensure clean program exit (no additional threads running)
-         */
-        
-        public void removeAllListeners()
-        {
-            tableModelListeners.clear();
-            comboBoxModelListDataListeners.clear();
-        }
-        
-        
-        
-        //TABLE MODEL IMPLEMENTATION
-        
-        private void notifyTableModelChange()
-        {
-            tableBooleanSelection = new boolean[super.size()];
-            for(TableModelListener t : tableModelListeners)
-                t.tableChanged(new TableModelEvent(this));
-        }
-        
-        private void notifyTableModelChange(int index0, int index1)
-        {
-            tableBooleanSelection = new boolean[super.size()];
-            for(TableModelListener t : tableModelListeners)
-                t.tableChanged(new TableModelEvent(this, index0, index1));
-        }
-
-        @Override
-        public int getRowCount() {
-            return this.size();
-            
-        }
-
-        @Override
-        public int getColumnCount() {
-            return headers.length;
-        }
-
-        @Override
-        public String getColumnName(int columnIndex) {
-            if(columnIndex>-1 && columnIndex < getColumnCount())
-                return headers[columnIndex];
-            return null;
-        }
-
-        @Override
-        public Class<?> getColumnClass(int columnIndex) {
-            if(getValueAt(0, columnIndex) == null )
-                return Object.class;
-            return getValueAt(0, columnIndex).getClass();
-        }
-
-        @Override
-        public boolean isCellEditable(int rowIndex, int columnIndex) {
-            if (columnIndex != 0)
-                return false;
-            return true;
-        }
-
-        @Override
-        public Object getValueAt(int rowIndex, int columnIndex) {
-            switch (columnIndex)
-            {
-                case 0:
-                    return tableBooleanSelection[rowIndex];
-                case 1:
-                    return modelEventArray[rowIndex].getShortDate() + " " + modelEventArray[rowIndex].getTime();
-                case 2:
-                    return modelEventArray[rowIndex].getName();
-                case 3:
-                    return modelEventArray[rowIndex].getAttendees().size();
-                case 4:
-                    return modelEventArray[rowIndex].getWaitinglist().size();
-                case 5:
-                    return modelEventArray[rowIndex];
-                default:
-                    return null;
-            }
-        }
-        
-
-        @Override
-        public void setValueAt(Object aValue, int rowIndex, int columnIndex) {
-            if(columnIndex == 0)
-                tableBooleanSelection[rowIndex] = (boolean) aValue;
-        }
-
-        @Override
-        public void addTableModelListener(TableModelListener l) {
-            tableModelListeners.add(l);
-        }
-
-        @Override
-        public void removeTableModelListener(TableModelListener l) {
-            tableModelListeners.remove(l);
-        }
-        
-        //COMBOBOX MODEL IMPLEMENTATION
-
-        /**
-         * used by ComboBoxModel class to notify of data changes
-         * @param index0 beginning index of changes
-         * @param index1 ending index of changes
-         */
-        private void notifyComboBoxModelChange(int index0, int index1)
-        {
-            for(ListDataListener l : comboBoxModelListDataListeners)
-                l.contentsChanged(new ListDataEvent(this, ListDataEvent.CONTENTS_CHANGED, index0, index1));
-        }
-        
-        @Override
-        public void setSelectedItem(Object anItem) {
-            comboBoxModelSelectedItem = anItem;
-            notifyComboBoxModelChange(0, getSize()-1); //Should this be the indexes of selected/deselected?
-        }
-
-        @Override
-        public Object getSelectedItem() {
-            return comboBoxModelSelectedItem;
-        }
-
-        @Override
-        public int getSize() {
-            return this.size();
-        }
-
-        @Override
-        public Event getElementAt(int index) {
-            if(index < modelEventArray.length)
-                return modelEventArray[index];
-            return null;
-        }
-
-        @Override
-        public void addListDataListener(ListDataListener l) {
-            comboBoxModelListDataListeners.add(l);
-        }
-
-        @Override
-        public void removeListDataListener(ListDataListener l) {
-            comboBoxModelListDataListeners.remove(l);
-        }
-        
-    }
 }
-
+    
 /*---------NOTES -------------
    
      * IMPORTANT: COLUMN WHERE DESIRED LOCATION IS HARD CODED. PERHAPS A LATER FEATURE WILL ALLOW THE USER TO SELECT THE COLUMNS

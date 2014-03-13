@@ -105,8 +105,7 @@ public final class ViewTickets extends JPanel
 
         private JTable getMyTable()
         {
-            JTable ret = new JTable();
-            ret.setModel(model.getEvents());
+            JTable ret = model.getEventsJTable();
             ret.setAutoCreateRowSorter(true);
             ret.setPreferredScrollableViewportSize(new Dimension(500, 200));
             ColumnsAutoSizer.sizeColumnsToFit(ret);

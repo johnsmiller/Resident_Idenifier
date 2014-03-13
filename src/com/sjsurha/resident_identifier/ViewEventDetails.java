@@ -40,7 +40,7 @@ public final class ViewEventDetails extends JPanel{
         
         model = ModelIn;
         
-        eventCombobox = new JComboBox(model.getEvents());
+        eventCombobox = model.getEventsJComboBox();
         eventCombobox.setPreferredSize(new Dimension(500,23));
         eventCombobox.addActionListener(Get_Display_Listener());
         this.add(eventCombobox);

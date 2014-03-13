@@ -46,7 +46,7 @@ public final class ViewSignIn extends JPanel
         idInput.addActionListener(submitActionListener());//submit on enter, Issue with no focus when program first runs
         this.add(idInput);
 
-        event_combobox = new JComboBox(model.getEvents());
+        event_combobox = model.getEventsJComboBox();
         event_combobox.setPreferredSize(new Dimension(500,23));
         if(event_combobox.getItemCount()>0)
             event_combobox.setSelectedIndex(0);

@@ -98,7 +98,7 @@ public final class ViewEditDatabase extends JPanel
 
     private void updateText()
     {
-        currentResCount.setText("Number of Events in database: " + model.getEvents().size() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Residents in Database: " + model.residentCount());
+        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Residents in Database: " + model.residentCount());
     }
 
     private ActionListener Import_ActionListener()
