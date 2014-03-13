@@ -75,7 +75,7 @@ public final class Model implements Serializable{
     private final int USER_REQUEST_TOLERANCE = 10;
     private final long ADMIN_VERIFICATION_TOLERANCE = 30*1000000000; //time (in nanoseconds) that a verified admin can access admin functions without admin authentication
     private static Long last_admin_request; //time (in nanoseconds) of last admin authentication
-    private final int MAX_CONSECUTIVE_FAILED_ATTEMPTS = 5;
+    private final int MAX_CONSECUTIVE_FAILED_ATTEMPTS = 5; //Number of failed Admin Authenication attempts before program resets
     private Integer consecutive_failed_attempts;
     
     //Excel import variables
@@ -733,7 +733,7 @@ public final class Model implements Serializable{
         }
         
          @Override
-        public boolean add(Event e)
+        public boolean add(Event e)  //Modify to take in Authenication ID for future logging function
         {
             if(super.add(e)) {
                 comboBoxModelSelectedItem = e;
@@ -744,7 +744,7 @@ public final class Model implements Serializable{
         }
         
         @Override
-        public boolean remove(Object o)
+        public boolean remove(Object o) //Modify to take in Authenication ID for future logging function
         {
             if(super.remove(o)){
                 if(comboBoxModelSelectedItem.equals(o))
@@ -756,13 +756,21 @@ public final class Model implements Serializable{
         }
         
         @Override
-        public boolean addAll(Collection<? extends Event> c)
+        public boolean addAll(Collection<? extends Event> c) //Modify to take in Authenication ID for future logging function
         {
             if(super.addAll(c)){
                 modelListenersNotify();
                 return true;
             }
             return false;  
+        }
+        
+        
+        
+        @Override
+        public void clear() //Modify to take in Authenication ID for future logging function
+        {
+            super.clear();
         }
         
         /*
