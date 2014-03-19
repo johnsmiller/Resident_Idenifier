@@ -12,6 +12,7 @@ import java.awt.event.ActionListener;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
+import javax.swing.JDialog;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -149,7 +150,15 @@ public final class ViewEventDetails extends JPanel{
                 final JButton secureAddTicketsButton = new JButton("Add tickets to selected resident");
                 secureAddTicketsButton.addActionListener(secureAddTickets(attendeesTable, 1));
 
-                Object[] message = {new JScrollPane(attendeesTable), secureAddTicketsButton};
+                final JButton saveAttendeesButton = new JButton("Save list to PDF");
+                saveAttendeesButton.setEnabled(false);
+                
+                JPanel buttonPanel = new JPanel();
+                
+                buttonPanel.add(secureAddTicketsButton);
+                buttonPanel.add(saveAttendeesButton);
+
+                Object[] message = {new JScrollPane(attendeesTable), buttonPanel};
                 JOptionPane.showConfirmDialog(null, message, "Event Attendee list", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
             }
         };
@@ -176,8 +185,14 @@ public final class ViewEventDetails extends JPanel{
                 secureAddTicketsButton.addActionListener(secureAddTickets(waitinglistTable, 1));
                 
                 final JButton saveWaitingListButton = new JButton("Save list to PDF");
+                saveWaitingListButton.setEnabled(false);
+                
+                JPanel buttonPanel = new JPanel();
+                
+                buttonPanel.add(secureAddTicketsButton);
+                buttonPanel.add(saveWaitingListButton);
 
-                Object[] message = {new JScrollPane(waitinglistTable), secureAddTicketsButton};
+                Object[] message = {new JScrollPane(waitinglistTable), buttonPanel};
                 JOptionPane.showConfirmDialog(null, message, "Event Waitinglist", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
             }
         };
@@ -191,38 +206,52 @@ public final class ViewEventDetails extends JPanel{
             public void actionPerformed(ActionEvent e) {
                 final JTextField ID_Textfield = new JTextField();
                 final JTextField Increase_Field = new JTextField();
+                
                 Increase_Field.setEditable(false);
-                ID_Textfield.addAncestorListener(new RequestFocusListener()); //Move away from RequestFocusListener for platform compatibility
-                ID_Textfield.addActionListener(new ActionListener() { //Move to it's own function for readability???
-
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        if(ID_Textfield.getText() == null || ViewerController.extractID(ID_Textfield.getText()) == null || !model.checkResident(ViewerController.extractID(ID_Textfield.getText()))){
-                            ID_Textfield.setText("");
-                            return;
-                        }
-                        ID_Textfield.setText(ViewerController.extractID(ID_Textfield.getText()));
-                        ID_Textfield.setEditable(false);
-                        Increase_Field.setEditable(true);
-                        Increase_Field.grabFocus();
-                    }
-                });
-
-                Object[] temp = {"Swipe ID: ", ID_Textfield, "Add tickets: ", Increase_Field};
-                if(/*model.Admin_Authentication_Popup() && */JOptionPane.showConfirmDialog(null, temp, "Add Tickets", JOptionPane.OK_CANCEL_OPTION)==JOptionPane.OK_OPTION){
-                    try{
-                        Integer Increase_Int = Integer.parseInt(Increase_Field.getText());
-                        Event event = (Event) eventCombobox.getSelectedItem();
-                        event.addTickets(ID_Textfield.getText(), Increase_Int);     
-                    } catch (NumberFormatException ex){
-                        JOptionPane.showMessageDialog(null, "Error: improper input for Add Tickets. \nTickets not added.", "Add Tickets Error", JOptionPane.ERROR_MESSAGE);
-                    } catch (NullPointerException ex) {
-                        JOptionPane.showMessageDialog(null, "Error: improper input for Add Tickets or invalid Event selected", "Add Tickets Error", JOptionPane.ERROR_MESSAGE);
-                    }
+                
+                Object[] message = {"Swipe ID: ", ID_Textfield, "Add tickets: ", Increase_Field};
+                Object[] options = {"OK", "Cancel"};
+                
+                JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, ID_Textfield);
+                JDialog diag = pane.createDialog("Add Tickets");
+                
+                ID_Textfield.addActionListener(verifyIDSwapEditable(ID_Textfield, Increase_Field));
+                Increase_Field.addActionListener(ViewerController.disposeDialogActionListener(diag));
+                
+                diag.setVisible(true);
+                
+                if(Increase_Field.getText() == null || Increase_Field.getText().length() == 0 || pane.getValue() == null || pane.getValue() == JOptionPane.CLOSED_OPTION || pane.getValue().equals(options[1]))
+                    return;
+                
+                try{
+                    Integer Increase_Int = Integer.parseInt(Increase_Field.getText());
+                    Event event = (Event) eventCombobox.getSelectedItem();
+                    event.addTickets(ID_Textfield.getText(), Increase_Int);     
+                } catch (NumberFormatException ex){
+                    JOptionPane.showMessageDialog(null, "Error: improper input for Add Tickets. \nTickets not added.", "Add Tickets Error", JOptionPane.ERROR_MESSAGE);
+                } catch (NullPointerException ex) {
+                    JOptionPane.showMessageDialog(null, "Error: improper input for Add Tickets or invalid Event selected", "Add Tickets Error", JOptionPane.ERROR_MESSAGE);
                 }
-
             }
         };
+    }
+    
+    private ActionListener verifyIDSwapEditable(final JTextField ID_Textfield, final JTextField otherTextField)
+    {
+        return (new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(ID_Textfield.getText() == null || ViewerController.extractID(ID_Textfield.getText()) == null || !model.checkResident(ViewerController.extractID(ID_Textfield.getText()))){
+                    ID_Textfield.setText("");
+                    return;
+                }
+                ID_Textfield.setText(ViewerController.extractID(ID_Textfield.getText()));
+                ID_Textfield.setEditable(false);
+                otherTextField.setEditable(true);
+                otherTextField.grabFocus();
+            }
+        });
     }
 
     private ActionListener secureAddTickets(final JTable mssage, final int idColumn)
@@ -232,7 +261,7 @@ public final class ViewEventDetails extends JPanel{
             @Override
             public void actionPerformed(ActionEvent e) {
                 JTextField increaseField = new JTextField();
-                Object[] temp = { "Add tickets: ", increaseField};
+                Object[] temp = { "Add tickets: ", increaseField}; //SET FOCUS TO increaseField
                 if(mssage.getSelectedRow() != -1 && JOptionPane.showConfirmDialog(null, temp, "Add Tickets", JOptionPane.OK_CANCEL_OPTION)==JOptionPane.OK_OPTION){
                     try{
                         TableModel model = mssage.getModel();

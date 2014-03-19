@@ -72,9 +72,9 @@ public final class ViewerController implements Runnable{
             final String[] options = {"OK", "Cancel"};
             JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, message[1]);
             final JDialog diag = pane.createDialog("Database Decryption");
-            psswrd.addActionListener(passwordActionListener(diag));
+            psswrd.addActionListener(disposeDialogActionListener(diag));
             diag.setVisible(true);
-            if(psswrd.getPassword() == null || psswrd.getPassword().length == 0 || pane.getValue() == null || pane.getValue() == JOptionPane.CLOSED_OPTION || pane.getValue() == JOptionPane.CLOSED_OPTION || pane.getValue().equals(options[1]))
+            if(psswrd.getPassword() == null || psswrd.getPassword().length == 0 || pane.getValue() == null || pane.getValue() == JOptionPane.CLOSED_OPTION || pane.getValue().equals(options[1]))
                 throw new InvalidKeyException("User did not enter a password for decryption");
             
             sealer = new SealObject(new String(((JPasswordField)message[1]).getPassword()));
@@ -87,7 +87,7 @@ public final class ViewerController implements Runnable{
         }
     }
     
-    private ActionListener passwordActionListener(final JDialog diag)
+    public static ActionListener disposeDialogActionListener(final JDialog diag)
     {       
         return new ActionListener() {
 
@@ -247,6 +247,9 @@ public final class ViewerController implements Runnable{
     
     /**
      * Thread to ensure model is written to file for a set time period.
+     * 
+     * ISSUE: Is causing a HashMap (admins or residents) in model to throw 
+     * concurrent modification exception
      */
     
     private void autosaveThread()
@@ -254,12 +257,16 @@ public final class ViewerController implements Runnable{
         Thread t1 = new Thread(new Runnable() {
             @Override
             public void run() {
-                try {   Thread.sleep(autosaveDuration); } 
-                catch (InterruptedException ex) {} 
-                finally {
-                    try {   seal(); } 
-                    catch (IOException | CEEncryptionErrorException ex) {} 
-                    finally { autosaveThread(); }
+                while(true){
+                    try{
+                        Thread.sleep(autosaveDuration); 
+                    } catch (InterruptedException ex) {
+                    } finally {
+                        try {   
+                            seal(); 
+                        } 
+                        catch (IOException | CEEncryptionErrorException ex) {}
+                    }
                 }
             }
         });

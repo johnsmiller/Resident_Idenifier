@@ -22,8 +22,8 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
     private static final long serialVersionUID = 1L;
     private final String[] headers = {"Select", "Event Date", "Event Name", "Attendees", "Waitlisted"};
     private boolean[] tableBooleanSelection;
-    private HashSet<TableModelListener> tableModelListeners;
-    private HashSet<ListDataListener> comboBoxModelListDataListeners;
+    private static HashSet<TableModelListener> tableModelListeners;
+    private static HashSet<ListDataListener> comboBoxModelListDataListeners;
     Event[] modelEventArray;
     private Object comboBoxModelSelectedItem;
 
@@ -34,6 +34,12 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         tableModelListeners = new HashSet<>(5);
         comboBoxModelListDataListeners = new HashSet<ListDataListener>(10);
         modelEventArray = this.toArray(new Event[super.size()]);
+    }
+    
+    static 
+    {
+        tableModelListeners = new HashSet<>(5);
+        comboBoxModelListDataListeners = new HashSet<ListDataListener>(10);
     }
 
     @Override

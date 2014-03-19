@@ -45,21 +45,16 @@ public final class ViewEditDatabase extends JPanel
         updateText();
         currentResCount.setEditable(false);
         this.add(currentResCount);
-                
-        JPanel eventButtonPanel = new JPanel();
+        
         JPanel adminButtonPanel = new JPanel();
         JPanel residentButtonPanel = new JPanel();
-        
-        deleteEvents = new JButton("Delete All Events");
-        deleteEvents.setEnabled(false);//deleteEvents.addActionListener(deleteEventsActionListener());
-        eventButtonPanel.add(deleteEvents);
-        
+                
         addAdmin = new JButton("Add New Admin");
-        addAdmin.addActionListener(Add_Admin_ActionListener());
+        addAdmin.addActionListener(addAdminActionListener());
         adminButtonPanel.add(addAdmin);
         
         removeAdmin = new JButton("Remove Admin");
-        removeAdmin.setEnabled(false);//removeAdmin.addActionListener(removeAdminActionListener());
+        removeAdmin.addActionListener(removeAdminActionListener());
         adminButtonPanel.add(removeAdmin);
         
         mergeDatabase = new JButton("Merge with Existing Database");
@@ -67,7 +62,7 @@ public final class ViewEditDatabase extends JPanel
         adminButtonPanel.add(mergeDatabase);
 
         importResidents = new JButton("Import Residents");
-        importResidents.addActionListener(Import_ActionListener());
+        importResidents.addActionListener(importActionListener());
         residentButtonPanel.add(importResidents);
 
         addResident = new JButton("Manually Add Resident");
@@ -78,10 +73,13 @@ public final class ViewEditDatabase extends JPanel
         deleteResidents.addActionListener(deleteResidents());
         residentButtonPanel.add(deleteResidents);
         
+        deleteEvents = new JButton("Delete All Events");
+        deleteEvents.addActionListener(deleteEventsActionListener());
+        residentButtonPanel.add(deleteEvents);
+        
         buttonPanel = new JPanel();
         buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
         
-        buttonPanel.add(eventButtonPanel);
         buttonPanel.add(adminButtonPanel);
         buttonPanel.add(residentButtonPanel);
 
@@ -101,7 +99,7 @@ public final class ViewEditDatabase extends JPanel
         currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Residents in Database: " + model.residentCount());
     }
 
-    private ActionListener Import_ActionListener()
+    private ActionListener importActionListener()
     {
         return new ActionListener() {
 
@@ -126,14 +124,37 @@ public final class ViewEditDatabase extends JPanel
             }
         };
     }
+    
+    private ActionListener deleteEventsActionListener()
+    {
+        return new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                model.emptyEventDatabase();
+                updateText();
+            }
+        };
+    }
 
-    private ActionListener Add_Admin_ActionListener()
+    private ActionListener addAdminActionListener()
     {
         return new ActionListener() {
 
             @Override
             public void actionPerformed(ActionEvent e) {
                 model.adminCreation();
+                updateText();
+            }
+        };
+    }
+    
+    private ActionListener removeAdminActionListener()
+    {
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                model.adminRemoval();
                 updateText();
             }
         };

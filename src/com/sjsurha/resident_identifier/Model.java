@@ -18,7 +18,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collection;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -29,7 +28,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.ComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -37,12 +35,7 @@ import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
-import javax.swing.event.ListDataEvent;
-import javax.swing.event.ListDataListener;
-import javax.swing.event.TableModelEvent;
-import javax.swing.event.TableModelListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.table.TableModel;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -192,6 +185,18 @@ public final class Model implements Serializable{
         return events.add(event);
     }
     
+    protected void emptyEventDatabase() {
+        if(Admin_Authentication_Popup())
+        {
+            if(JOptionPane.showConfirmDialog(null, "DELETE ALL EVENTS IN DATABASE? \nTHIS CANNOT BE UNDONE", "Delete Events", JOptionPane.OK_CANCEL_OPTION)== JOptionPane.OK_OPTION){
+                synchronized(events)  {   events.clear();  }
+                JOptionPane.showMessageDialog(null, "All Events Deleted", "Delete Events", JOptionPane.INFORMATION_MESSAGE);
+            }
+            else
+                JOptionPane.showMessageDialog(null, "Database deletion cancelled", "Delete Events", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
     /**
      * The model is required to implement this function due to the fact that
      * it changes data the event collection uses to sort events.
@@ -292,7 +297,7 @@ public final class Model implements Serializable{
      * @return JComboBox based off the events collection
      */
     
-    protected JComboBox getEventsJComboBox()
+    public JComboBox getEventsJComboBox()
     {
         return new JComboBox(events);
     }
@@ -343,13 +348,13 @@ public final class Model implements Serializable{
      */
     private void importEvents()
     {
-        try {
-            ObjectInputStream input = new ObjectInputStream(new FileInputStream(new File("RecoveredEvents.obj")));
+        try (ObjectInputStream input = new ObjectInputStream(new FileInputStream(new File("RecoveredEvents.obj")))) {
             TreeSet<Event> ImportedEvents = (TreeSet<Event>) input.readObject();
             events.addAll(ImportedEvents);
-            input.close();
             JOptionPane.showMessageDialog(null, ImportedEvents.size() + " Events Imported successfully.", "Import complete", JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException | ClassNotFoundException ex) {
+        }
+        
+        catch (IOException | ClassNotFoundException ex) {
             Logger.getLogger(Model.class.getName()).log(Level.SEVERE, null, ex);
             JOptionPane.showMessageDialog(null, "Error: Import unsuccessful.", "Import error", JOptionPane.ERROR_MESSAGE);
         }
@@ -357,6 +362,7 @@ public final class Model implements Serializable{
     
     /**
      * This functionality will soon be moved to the Event class
+     * USES MODEL'S RESIDENTS TO GET RESIDENT INFO
      * Formats an event's attendees list into an Object 2-dimensional
      * array for use in a JTable.
      * 
@@ -389,6 +395,7 @@ public final class Model implements Serializable{
     
     /**
      * This functionality will soon be moved to the Event class
+     * USES MODEL'S RESIDENTS TO GET RESIDENT INFO
      * Formats an event's waitlist into an Object 2-dimensional
      * array for use in a JTable.
      * 
@@ -564,6 +571,23 @@ public final class Model implements Serializable{
     }
     
     /**
+     * Private function to ensure removing an admin is standardized between 
+     * changing model implementations
+     * 
+     * Does not extract ID, so method of Admin removal (such as a 
+     * magnetic card reader or barcode scanner) must be the same type used
+     * when removing
+     * 
+     * @param ID the new Administrator's ID
+     * @return 
+     */
+    
+    private boolean removeAdmin(String ID)
+    {
+        return admins.remove(ID);
+    }
+    
+    /**
      * Used to add new Administrators to the database
      * 
      * An existing admin is required to authenticate before adding the new admin
@@ -574,6 +598,17 @@ public final class Model implements Serializable{
     protected boolean adminCreation()
     {
         return(Admin_Authentication_Popup()&&adminCreationPopup());
+    }
+    
+    /**
+     * Used to remove admins from the database
+     * 
+     * @return 
+     */
+    
+    protected boolean adminRemoval()
+    {
+        return(Admin_Authentication_Popup()&&adminRemovalPopup());
     }
     
     /**
@@ -595,11 +630,43 @@ public final class Model implements Serializable{
                 return true;
             }
             else{
-                JOptionPane.showMessageDialog(null, "An error occured while adding the new Admin. \nMost likely, this person is already an Admin", "Admin Creation Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "An error occured while adding the new Admin. \nMost likely, this person is already an Admin", "Admin Creation Failure", JOptionPane.ERROR_MESSAGE);
             }
         }
         else {
-            JOptionPane.showMessageDialog(null, "The two card readings do not match. Please try again.", "Admin Creation Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "The two card readings do not match. Please try again.", "Admin Creation Failure", JOptionPane.ERROR_MESSAGE);
+        }
+        return false;
+    }
+    
+    /**
+     * Used to remove a specific Admin from the database
+     * 
+     * Will not remove admin if number of Admins is less than 2 since
+     * database requires at least 1 admin to function properly
+     * 
+     * @return true if the admin existed and was removed
+     */
+    
+    private boolean adminRemovalPopup()
+    {
+        String ID1 = (String)JOptionPane.showInputDialog(null,"Please swipe Admin's ID card to remove:", "Remove Admin",JOptionPane.QUESTION_MESSAGE);
+        if(ID1 != null && (JOptionPane.showConfirmDialog(null, "Perminately Remove Admin?", "Admin Removal", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION)){
+            if(admins.size()>1 && removeAdmin(ID1)){
+                JOptionPane.showMessageDialog(null, "Admin Removed Successfully", "New Admin Added", JOptionPane.INFORMATION_MESSAGE);
+                return true;
+            }
+            else{
+                JOptionPane.showMessageDialog(null, 
+                        "An error occured while removing the Admin. "
+                        + "\nMost likely, this person is not an Admin "
+                        + "\nOr this is the last admin in the database "
+                        + "\n(database requires at least 1 admin to function)", 
+                        "Admin Removal Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+        else {
+            JOptionPane.showMessageDialog(null, "Admin not removed. Invalid ID or Cancled", "Admin Removal Failure", JOptionPane.ERROR_MESSAGE);
         }
         return false;
     }
@@ -637,6 +704,12 @@ public final class Model implements Serializable{
      * Model's implementation to validate for an administrative function
      * Function itself is not synchronized for efficiency's sake
      * Critical function areas after user input are synchronized
+     * 
+     * This function will be the center of the future logging function.
+     * Entries will be made by this function, which will take in a log enum type
+     * and a message describing the what this authorization will do.
+     * Entries will contain date/time, swiped ids, and results of authentication (enum)
+     * (cancelled, approved, failed)
      * 
      * @return true if the user was authenticated, false if user canceled out
      * of the dialog, safely exits program if more than 5 failed attempts.

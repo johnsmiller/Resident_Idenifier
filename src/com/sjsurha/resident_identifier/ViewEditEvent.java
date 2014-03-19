@@ -151,11 +151,13 @@ public final class ViewEditEvent extends JPanel
                     tempDate.setTime(dateChooser.getDate());
                     tempDate.set(Calendar.HOUR_OF_DAY, hour.getSelectedIndex());
                     tempDate.set(Calendar.MINUTE, minute.getSelectedIndex()*5);
-                    String message = event.getName() + " on " + event.getShortDate() + " " 
+                    
+                    String message = 
+                            event.getName() + " on " + event.getShortDate() + " " 
                             + event.getTime() 
                             + " will be updated to " 
                             + name.getText() + " on "
-                            + tempDate.get(Calendar.MONTH) + "/"
+                            + (tempDate.get(Calendar.MONTH) + 1) + "/"
                             + tempDate.get(Calendar.DATE) + "/"
                             + tempDate.get(Calendar.YEAR) + " "
                             + tempDate.get(Calendar.HOUR) + ":"
