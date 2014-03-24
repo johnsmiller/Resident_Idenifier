@@ -11,6 +11,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.locks.Lock;
 import javax.swing.JOptionPane;
+import javax.swing.JRadioButton;
+import javax.swing.JTextField;
 
 /*
  * To change this template, choose Tools | Templates
@@ -138,14 +140,18 @@ public final class Event implements Comparable<Event>, Serializable{
     }
     /**
      *
-     * @param ID
-     * @return
-     * @throws CEDuplicateAttendeeException
-     * @throws CEMaxiumAttendeesException
+     * @param ID Resident ID to check in
+     * @param disableRecheckinPrompt if true, does not prompt to update check in
+     *  time
+     * @return true if the resident is successfully checked in / check in time
+     *  is updated
+     * @throws CEDuplicateAttendeeException if resident is already attending or
+     *  waitlisted for this event
+     * @throws CEMaximumAttendeesException if maximum attendees is reached
      */
-    public boolean validAttendee(String ID) throws CEDuplicateAttendeeException, CEMaxiumAttendeesException
+    public boolean validAttendee(String ID/*, boolean disableRecheckinPrompt*/) throws CEDuplicateAttendeeException, CEMaximumAttendeesException
     {
-        boolean wait = false;
+        boolean wait = false; //To prevent searching an arraylist multiple times
         if(isAttendee(ID) || (wait = isWaitlisted(ID))){
            GregorianCalendar time = attendees.get(ID);
            if(wait){
@@ -166,8 +172,12 @@ public final class Event implements Comparable<Event>, Serializable{
                waitinglist.put(new GregorianCalendar(), ID);
                return true;
            }
-        } else if(maxAttendee() && !autoWaitlist)
-            throw new CEMaxiumAttendeesException("Event has maxium number of Residents Attending"); //Change to JDialog?
+        } else if(maxAttendee() && !autoWaitlist){
+            if(maxAttendeeHandler())
+                return validAttendee(ID);
+            else
+                return false;
+        }
         else if(maxAttendee() && autoWaitlist)
             return addWaitlist(ID);
         else 
@@ -393,5 +403,53 @@ public final class Event implements Comparable<Event>, Serializable{
                 }
             }
         }
+    }
+    
+    /**
+     * Event's implementation to handle an event that has reached its maximum 
+     * number of attendees.
+     * 
+     * Allows a user to 
+     * a) increase (or disable) the max attendee limit 
+     * b) start a waiting list for this event, 
+     * c) Do nothing. If a resident sign-in triggered this function, the resident will not be added
+     * 
+     * @return true if waitlist or increased attendees, false if bad authenication or user decides not to increase/activate max/waitlist
+     */
+    private boolean maxAttendeeHandler() 
+    {
+        JTextField increaseBy = new JTextField();
+        JRadioButton increase = new JRadioButton("Increase the limit (current limit: " + getMaxParticipants() + "). Increase limit by: ");
+        Object[] op1 = {increase, increaseBy};
+        JRadioButton op2 = new JRadioButton("Start a waiting list. \nAll IDs swiped for this event after this point will go on a printable waiting list");
+        JRadioButton op3 = new JRadioButton("Don't add anymore attendees, including this one.");
+        String message = "This event has reached its maxiumum number of attendees. This value was set when the event was created, \nYou can: ";
+        Object[] options = {message, op1, op2, op3};
+        int temp = JOptionPane.showOptionDialog(null, options, "Max Attendees Reached", JOptionPane.OK_OPTION, JOptionPane.INFORMATION_MESSAGE, null, null, null);
+        boolean select = (temp != JOptionPane.NO_OPTION && temp != JOptionPane.CLOSED_OPTION);
+        if(select && increase.isSelected()){
+            try{
+                int inc;
+                if((inc = Integer.parseInt(increaseBy.getText())) < 0) {
+                    JOptionPane.showMessageDialog(null, "Error: Invalid increase amount entered.", "Increase Error", JOptionPane.ERROR_MESSAGE);
+                    return false;
+                }
+                synchronized(this) {
+                    setMaxParticipants(getMaxParticipants()+inc);
+                }
+                return true;
+            }
+            catch(NumberFormatException | NullPointerException ex){
+                JOptionPane.showMessageDialog(null, "Error: Invalid increase amount entered.", "Increase Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }        
+        }
+        if(select && op2.isSelected()){
+            synchronized(this) {
+                setAutoWaitlist(true);
+            }
+            return true;
+        }
+        return false;
     }
 }

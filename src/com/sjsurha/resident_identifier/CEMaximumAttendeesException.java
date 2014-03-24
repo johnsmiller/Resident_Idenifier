@@ -9,23 +9,23 @@ package com.sjsurha.resident_identifier;
  *
  * @author John
  */
-public class CEMaxiumAttendeesException extends Exception {
+public class CEMaximumAttendeesException extends Exception {
     
     /**
      * Creates a new instance of
-     * <code>CEMaxiumAttendeesException</code> without detail message.
+     * <code>CEMaximumAttendeesException</code> without detail message.
      */
-    public CEMaxiumAttendeesException() {
+    public CEMaximumAttendeesException() {
         super();
     }
 
     /**
      * Constructs an instance of
-     * <code>CEMaxiumAttendeesException</code> with the specified detail message.
+     * <code>CEMaximumAttendeesException</code> with the specified detail message.
      *
      * @param msg the detail message.
      */
-    public CEMaxiumAttendeesException(String msg) {
+    public CEMaximumAttendeesException(String msg) {
         super(msg);
     }
     
@@ -34,7 +34,7 @@ public class CEMaxiumAttendeesException extends Exception {
      * @param message
      * @param throwable
      */
-    public CEMaxiumAttendeesException(String message, Throwable throwable) {
+    public CEMaximumAttendeesException(String message, Throwable throwable) {
         super(message, throwable);
     }
 }

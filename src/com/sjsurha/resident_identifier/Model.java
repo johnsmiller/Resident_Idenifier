@@ -31,10 +31,8 @@ import java.util.logging.Logger;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.JRadioButton;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
-import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -117,21 +115,14 @@ public final class Model implements Serializable{
      * @return Returns True if Resident & has not yet attended event
      * @throws CEDuplicateAttendeeException Thrown if Resident has already attended event
      * @throws CENonResidentException Thrown if Student ID does not exist in Resident hashmap
-     * @throws CEMaxiumAttendeesException Thrown if Event has reached the maximum number of Residents that can attend an event
+     * @throws CEMaximumAttendeesException Thrown if Event has reached the maximum number of Residents that can attend an event
      */
-    protected synchronized boolean addAttendee(String id, Event event) throws CEDuplicateAttendeeException, CENonResidentException, CEMaxiumAttendeesException
+    protected synchronized boolean addAttendee(String id, Event event) throws CEDuplicateAttendeeException, CENonResidentException, CEMaximumAttendeesException
     {
         //RequestCheck();
         if(id == null || !residents.containsKey(id))
-            throw new CENonResidentException("Student ID not in Resident Database");//Change to JDialog
-        try {
-            return event.validAttendee(id);
-        } catch (CEMaxiumAttendeesException ex) {
-            if(maxAttendeeHandler(event))
-                return event.validAttendee(id);
-            else
-                return false;           
-        }        
+            throw new CENonResidentException("Student ID not in Resident Database");//Change to JDialog?
+        return event.validAttendee(id);     
     }
     
      /**
@@ -141,7 +132,7 @@ public final class Model implements Serializable{
      */
     protected boolean checkResident(String id)
     {
-        RequestCheck();
+        //RequestCheck();
         if(residents.containsKey(id))
             return true;
         return false;
@@ -504,50 +495,6 @@ public final class Model implements Serializable{
         return ret;
     }
     
-    /**
-     * Model's implementation to handle an event that has reached its maximum 
-     * number of attendees.
-     * 
-     * Allows a user to 
-     * a) increase (or disable) the max attendee limit 
-     * b) start a waiting list for this event, 
-     * c) Do nothing. If a resident sign-in triggered this function, the resident will not be added
-     * 
-     * @param event the event that has reached its maximum capacity
-     * @return true if waitlist or increased attendees, false if bad authenication or user decides not to increase/activate max/waitlist
-     */
-    protected boolean maxAttendeeHandler(Event event) 
-    {
-        JTextField increaseBy = new JTextField();
-        JRadioButton increase = new JRadioButton("Increase the limit (current limit: " + event.getMaxParticipants() + "). Increase limit by: ");
-        Object[] op1 = {increase, increaseBy};
-        JRadioButton op2 = new JRadioButton("Start a waiting list. \nAll IDs swiped for this event after this point will go on a printable waiting list");
-        JRadioButton op3 = new JRadioButton("Don't add anymore attendees, including this one.");
-        String message = "This event has reached its maxiumum number of attendees. This value was set when the event was created, \nYou can: ";
-        Object[] options = {message, op1, op2, op3};
-        int temp = JOptionPane.showOptionDialog(null, options, "Max Attendees Reached", JOptionPane.OK_OPTION, JOptionPane.INFORMATION_MESSAGE, null, null, null);
-        boolean select = (temp != JOptionPane.NO_OPTION && temp != JOptionPane.CLOSED_OPTION);
-        if(select && increase.isSelected()){
-            try{
-                int inc = Integer.parseInt(increaseBy.getText());
-                synchronized(event) {
-                    event.setMaxParticipants(event.getMaxParticipants()+inc);
-                }
-                return true;
-            }
-            catch(NumberFormatException | NullPointerException ex){
-                JOptionPane.showMessageDialog(null, "Error: Invalid increase amount entered.", "Increase Error", JOptionPane.ERROR_MESSAGE);
-                return false;
-            }        
-        }
-        if(select && op2.isSelected()){
-            synchronized(event) {
-                event.setAutoWaitlist(true);
-            }
-            return true;
-        }
-        return false;
-    }
     
         
     //ADMIN-FUNCTIONS 

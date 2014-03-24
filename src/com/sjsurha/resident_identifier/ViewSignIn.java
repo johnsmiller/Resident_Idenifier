@@ -119,7 +119,7 @@ public final class ViewSignIn extends JPanel
                 } catch (CENonResidentException ex) {
                     setBackground(Color.RED);
                     setText("Error: Resident not found. This could be a database error. \nTry typing in the ID manually\nAdmin users can manually add a resident after verifying they are residents");
-                } catch (CEMaxiumAttendeesException ex) {
+                } catch (CEMaximumAttendeesException ex) {
                     setBackground(Color.YELLOW);
                     setText("There was an error adding this resident. Please try again.");
                 } finally {
