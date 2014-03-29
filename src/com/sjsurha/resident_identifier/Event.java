@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.locks.Lock;
 import javax.swing.JOptionPane;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
@@ -160,7 +159,12 @@ public final class Event implements Comparable<Event>, Serializable{
                time = (GregorianCalendar)waitinglist.keySet().toArray()[loc];
            }
            int[] arr = getTimeDifference(time, new GregorianCalendar());
-           String message = "Resident already swiped in\n" + arr[0] + " Days " + arr[1] + " Hours " + arr[2] + " Minutes " + arr[3] + " Seconds ago\nRecheck in? (Previous time is discarded. This does not affect number of tickets)";
+           
+           String message = "Resident already swiped in\n" 
+                   + arr[0] + " Days " + arr[1] + " Hours " 
+                   + arr[2] + " Minutes " + arr[3] + " Seconds ago\nRecheck in? "
+                   + "(Previous time is discarded. This does not affect number of tickets)";
+           
            if(JOptionPane.showConfirmDialog(null, message, "Duplicate Resident", JOptionPane.OK_CANCEL_OPTION, JOptionPane.ERROR_MESSAGE) != JOptionPane.OK_OPTION)
                throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
            if(!wait){
@@ -356,53 +360,26 @@ public final class Event implements Comparable<Event>, Serializable{
     }
     
     /**
-     *
-     * @param ID
-     * @param Results
-     * @param lock
-     * @return
+     * Returns a runnable thread that searches this event for the given ID
+     * If found, the thread adds this event to the given Tree<Set>
+     * NOTE: This implementation provides synchronized functionality. 
+     * 
+     * @param id
+     * @param results
+     * @return 
      */
-    public Runnable search(String ID, TreeSet<Event> Results, Lock lock)
+    public Runnable search(final String id, final TreeSet<Event> results)
     {
-        return new Searcher(this, ID, Results, lock);
-    }
+        final Event th = this;
+        return new Runnable() {
 
-    /**
-     *
-     */
-    public class Searcher implements Runnable
-    {
-        private final Event parent;
-        private final String id;
-        private final TreeSet<Event> results;
-        private final Lock resultsLock;
-        /**
-         *
-         * @param Parent
-         * @param ID
-         * @param Results
-         * @param ResultsLock
-         */
-        public Searcher(Event Parent, String ID, TreeSet<Event> Results, Lock ResultsLock)
-        {
-            parent = Parent;
-            id = ID;
-            results = Results;
-            resultsLock = ResultsLock;
-        }
-
-        @Override
-        public void run() {
-            if(attendees.containsKey(id) || waitinglist.containsValue(id)){
-                resultsLock.lock();
-                try{
-                    results.add(parent);
-                }
-                finally{
-                    resultsLock.unlock();
+            @Override
+            public void run() {
+                if(attendees.containsKey(id) || waitinglist.containsValue(id)){ //Short-circuit array O(n) lookup if in attendees
+                    results.add(th); //DIFFERINTIATE BETWEEN WAITINGLIST AND ATTENDEE!!!!!
                 }
             }
-        }
+        };
     }
     
     /**

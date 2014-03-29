@@ -1,7 +1,7 @@
 package com.sjsurha.resident_identifier;
 
 //Syncronized: events
-//To Syncronize: 
+//To Syncronize: admin (authenication while adding)?
 //Additions: Server/Client across-internet functionality? (possible?)
 //           Halls Program: Remove non-pertanant info
 //                          Checkin by hall
@@ -31,7 +31,6 @@ import java.util.logging.Logger;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
-import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.poi.ss.usermodel.Cell;
@@ -46,9 +45,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  * @version .7 - Development
  */
 
-//Serialize (store data) when main thread closed
+//Serialize (store data) when main thread closed -- Done
 //Set-up function to store Model's individual private members in case model class changed after program is implemented.
-//Handle an event that check in a student multiple times?? (future dev?)
+//Handle an event that check in a student multiple times?? (future dev?) --Done
 //Handle checking attendance across several events?? (future dev?) (Neccessary?)
 public final class Model implements Serializable{
     private static final long serialVersionUID = 2L;
@@ -82,7 +81,8 @@ public final class Model implements Serializable{
     private final String[] INVALID_ID_STRINGS = {"", "CLOSED"}; //Strings that indicate the current row is not a resident
       
     /**
-     *
+     * 
+     * @throws CEAuthenticationFailedException 
      */
     protected Model() throws CEAuthenticationFailedException
     {
@@ -99,13 +99,61 @@ public final class Model implements Serializable{
         importEvents(); //Temporary until 'Import Database' Function under Edit Database is fully functional
     }
     
+    /**
+     * 
+     */
     static
     {
         last_user_request = System.nanoTime();
         last_admin_request = (long) -1;
     }
+    
+/**
+ * Function to import and merge the database with an existing database
+ * IMPORTANT: Admins and Events will not import duplicates (thus Events with
+ * different attendees/waitlist/maxParticipants, the importing database's 
+ * record is kept).
+ * 
+ * By contrast, duplicate residents are imported and replace the importing 
+ * database's records
+ * 
+ * In future versions of this function, all records will be kept (conflicting 
+ * Events will be merged and the most recently imported resident will be kept)
+ * 
+ * 
+ * @param modelIn the decrypted model to be imported
+ * @param importAdmins if true, import non-existing admins into this model
+ * @param importEvents if true, import non-existing events into this model
+ * @param importResidents if true, import all (replace existing) residents
+ * @return true if Admin/Residents changed as a result. True by default for 
+ * events
+ */
+    
+    protected synchronized boolean mergeDatabase(Model modelIn, boolean importAdmins, boolean importEvents, boolean importResidents)
+    {
+        if(modelIn == null)
+            return false;
+        boolean ret = true;
+        
+        if(importAdmins)
+        {
+            ret = ret && admins.addAll(modelIn.admins);
+        }
+        
+        if(importEvents)
+        {
+            ret = ret && events.addAll(modelIn.events);
+        }
+        
+        if(importResidents)
+        {
+            residents.putAll(modelIn.residents);
+        }
+        
+        return ret;
+    }
 
-    //USER FUNCTION(S) (admin-authentication not required at this level)
+    //RESIDENCE DATABASE FUNCTION(S)
     
     /**
      * Checks if ID is in residents (student is a resident) and if resident has not yet attended this event.
@@ -126,7 +174,7 @@ public final class Model implements Serializable{
     }
     
      /**
-     *
+     * 
      * @param id
      * @return
      */
@@ -137,6 +185,10 @@ public final class Model implements Serializable{
             return true;
         return false;
     }
+    
+    /**
+     * old method to assist with depreciated security measure
+     */
     
     private void RequestCheck()
     {
@@ -154,6 +206,10 @@ public final class Model implements Serializable{
         }
     }
     
+    /**
+     * return size of resident database
+     * @return number of residents contained in database
+     */
     protected int residentCount()
     {
         if(residents != null)
@@ -161,15 +217,32 @@ public final class Model implements Serializable{
         return 0;
     }
     
+    /**
+     * Returns true if event with same name and date/time exists
+     * @param event the event to check against
+     * @return true if given event exists
+     */
+    
     protected synchronized boolean ContainsEvent(Event event)
     {
         return events.contains(event);
     }
     
+    /**
+     * Returns true if the set contained the element and was removed
+     * @param event the event to remove from the model
+     */
     protected synchronized void removeEvent(Event event)
     {
         events.remove(event);
     }
+    
+    /**
+     * Adds the given event to the model if it does not already contain an event
+     * with the same name and date/time. Otherwise, nothing changes
+     * @param event the event to add to the event
+     * @return true if the set changed as a result of this call
+     */
     
     private synchronized boolean addEvent(Event event)
     {
@@ -212,10 +285,15 @@ public final class Model implements Serializable{
     }
     
     /**
-     *
-     * @param Name
-     * @param DateTime
-     * @return
+     * Creates and returns an event with no max attendee limit 
+     * if an event with that name and date/time did not already exist and was 
+     * successfully added to the set
+     * 
+     * Returns null if the set did not change as a result of this call
+     * 
+     * @param Name Name of the event
+     * @param DateTime Date/Time container for event
+     * @return the created event if it was added successfully, null if not added
      */
     protected synchronized Event createEvent(String Name, GregorianCalendar DateTime)
     {
@@ -226,11 +304,16 @@ public final class Model implements Serializable{
     }
     
     /**
-     *
-     * @param Name
-     * @param DateTime
-     * @param MaxAttendees
-     * @return
+     * Creates and returns an event if an event with that name and date/time
+     * did not already exist and was successfully added to the set
+     * 
+     * Returns null if the set did not change as a result of this call
+     * 
+     * @param Name name of the event
+     * @param DateTime Date/Time container of the event
+     * @param MaxAttendees maximum  number of attendees that can attend this
+     * event
+     * @return the created event if successful, null if unsuccessful
      */
     protected synchronized Event createEvent(String Name, GregorianCalendar DateTime, int MaxAttendees)
     {
@@ -242,40 +325,48 @@ public final class Model implements Serializable{
     }
     
     /**
-     *
-     * @param Name
-     * @param year
-     * @param month
-     * @param day
-     * @param hour
-     * @param minute
-     * @return
+     * Constructs a GregorianCalendar and sends it to a synchronized overloaded 
+     * version of this function.
+     * 
+     * Creates and returns an Event with no maxAttendee limit if the set does
+     * not already contain an Event with the same Name and date/time. 
+     * 
+     * Returns null if set did not change as a result of this call
+     * 
+     * @param Name Name of event
+     * @param year Year in which event takes place
+     * @param month Month in which event takes place
+     * @param day day that event takes place
+     * @param hour hour that event takes place
+     * @param minute minute that event takes place
+     * @return the created event if successfully added, null if not
      */
-    protected synchronized Event createEvent(String Name, int year, int month, int day, int hour, int minute)
+    protected Event createEvent(String Name, int year, int month, int day, int hour, int minute)
     {
-        Event event = new Event(Name, new GregorianCalendar(year, month, day, hour, minute));
-        if(addEvent(event))
-            return event;
-        return null;
+        return createEvent(Name, new GregorianCalendar(year, month, day, hour, minute));
     }
     
     /**
-     *
-     * @param Name
-     * @param year
-     * @param month
-     * @param day
-     * @param hour
-     * @param minute
-     * @param MaxAttendees
-     * @return
+     * Constructs a GregorianCalendar object and sends it to a synchronized
+     * overloaded version of this function
+     * 
+     * Creates and returns an Event with MaxAttendees limit if the set does
+     * not already contain an Event with the same Name and date/time. 
+     * 
+     * Returns null if set did not change as a result of this call
+     * 
+     * @param Name Name of event
+     * @param year Year in which event takes place
+     * @param month Month in which event takes place
+     * @param day day that event takes place
+     * @param hour hour that event takes place
+     * @param minute minute that event takes place
+     * @param MaxAttendees limit on number of check-ins
+     * @return the created event if successfully added, null if not
      */
     protected Event createEvent(String Name, int year, int month, int day, int hour, int minute, int MaxAttendees)
     {
-        Event event = new Event(Name, new GregorianCalendar(year, month, day, hour, minute), MaxAttendees);
-        if(addEvent(event))
-            return event;
-        return null;
+        return createEvent(Name, new GregorianCalendar(year, month, day, hour, minute), MaxAttendees);
     }
     
     /**
@@ -419,7 +510,7 @@ public final class Model implements Serializable{
     }
     
     /**
-     * Early and arbitrary implementation.
+     * Early arbitrary function implementation.
      * Returns an ArrayList of all Events in the specified range (inclusive)
      *
      * @param fromDate the beginning date to search from (inclusive)
@@ -451,7 +542,7 @@ public final class Model implements Serializable{
      * Total events in the specified range, 
      * Most attended event (date, time, and number of attendees), 
      * Total number of residents (including duplicates)
-     * Total number of unique resident (no duplicates)
+     * Total number of unique residents (no duplicates)
      * 
      * @param fromDate the beginning date to start searching from (inclusive)
      * @param toDate the end date of search (inclusive)
@@ -486,11 +577,68 @@ public final class Model implements Serializable{
             }
         }
         if(numOfEvents!=0){
-            ret.add("The following statistics apply to events recorded from " + fromDate.getDisplayName(Calendar.MONTH,Calendar.LONG, Locale.ENGLISH)+" "+fromDate.getDisplayName(Calendar.DAY_OF_MONTH,Calendar.LONG, Locale.ENGLISH)+", "+fromDate.getDisplayName(Calendar.YEAR,Calendar.LONG, Locale.ENGLISH) + " to " + toDate.getDisplayName(Calendar.MONTH,Calendar.LONG, Locale.ENGLISH)+" "+toDate.getDisplayName(Calendar.DAY_OF_MONTH,Calendar.LONG, Locale.ENGLISH)+", "+toDate.getDisplayName(Calendar.YEAR,Calendar.LONG, Locale.ENGLISH));
+            ret.add("The following statistics apply to events recorded from " 
+                    + fromDate.getDisplayName(Calendar.MONTH,Calendar.LONG, 
+                        Locale.ENGLISH)+" "
+                    +fromDate.getDisplayName(Calendar.DAY_OF_MONTH, 
+                        Calendar.LONG, Locale.ENGLISH)+", "
+                    +fromDate.getDisplayName(Calendar.YEAR,Calendar.LONG, 
+                        Locale.ENGLISH) 
+                    + " to " 
+                    + toDate.getDisplayName(Calendar.MONTH,Calendar.LONG, 
+                        Locale.ENGLISH)+" "
+                    +toDate.getDisplayName(Calendar.DAY_OF_MONTH, Calendar.LONG, 
+                        Locale.ENGLISH)+", "
+                    +toDate.getDisplayName(Calendar.YEAR,Calendar.LONG, 
+                        Locale.ENGLISH));
+            
             ret.add("Total Events in date range: " + numOfEvents);
-            ret.add("Most attended event: " + maxAttended.getName() + " on " + maxAttended.getLongDate() + " " + maxAttended.getTime() + " with " + maxAttendees);
-            ret.add("Total number of Residents for all events: " + totalAttendees);
-            ret.add("Total number of Individual Residents who attended at least one event: " + individualAttendees.size());
+            ret.add("Most attended event: " + maxAttended.getName() + " on " 
+                    + maxAttended.getLongDate() + " " + maxAttended.getTime() 
+                    + " with " + maxAttendees);
+            
+            ret.add("Total number of Residents for all events: " 
+                    + totalAttendees);
+            ret.add("Unique residents who attended at least one event: " 
+                    + individualAttendees.size());
+        }
+        return ret;
+    }
+    
+    /**
+     * Launches search function of all events to locate all events a resident
+     * has attended.
+     * 
+     * Resident class will soon track these events independently, making time
+     * O(1) thus making this O(n) function only needed when 
+     * events or residents have been imported
+     * 
+     * A separate function to be called on event import that iterates over an
+     * event's Attendees / Waitlist and updates residents will be created later
+     * on
+     * 
+     * @param ID the ID to search for in all events
+     * @return a TreeSet<Event> with synchronized add function containing all
+     * events this resident attended.
+     */
+    
+    protected TreeSet<Event> getAttendedEvents(String ID)
+    {
+        TreeSet<Event> ret = new TreeSet<Event>(){ 
+            @Override
+            public boolean add(Event e)
+            {
+                boolean ret;
+                synchronized(this) {
+                    ret = super.add(e);
+                }
+                return ret;
+            }
+        };
+        
+        for(Event e : events)
+        {
+            new Thread(e.search(ID, ret)).start();
         }
         return ret;
     }
@@ -600,7 +748,7 @@ public final class Model implements Serializable{
         String ID1 = (String)JOptionPane.showInputDialog(null,"Please swipe Admin's ID card to remove:", "Remove Admin",JOptionPane.QUESTION_MESSAGE);
         if(ID1 != null && (JOptionPane.showConfirmDialog(null, "Perminately Remove Admin?", "Admin Removal", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION)){
             if(admins.size()>1 && removeAdmin(ID1)){
-                JOptionPane.showMessageDialog(null, "Admin Removed Successfully", "New Admin Added", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(null, "Admin Removed Successfully", "Admin Removed", JOptionPane.INFORMATION_MESSAGE);
                 return true;
             }
             else{
@@ -612,8 +760,8 @@ public final class Model implements Serializable{
                         "Admin Removal Error", JOptionPane.ERROR_MESSAGE);
             }
         }
-        else {
-            JOptionPane.showMessageDialog(null, "Admin not removed. Invalid ID or Cancled", "Admin Removal Failure", JOptionPane.ERROR_MESSAGE);
+        else if(ID1 == null){
+            JOptionPane.showMessageDialog(null, "Admin not removed. Invalid ID", "Admin Removal Failure", JOptionPane.ERROR_MESSAGE);
         }
         return false;
     }
@@ -654,7 +802,7 @@ public final class Model implements Serializable{
      * 
      * This function will be the center of the future logging function.
      * Entries will be made by this function, which will take in a log enum type
-     * and a message describing the what this authorization will do.
+     * and a message describing what this authorization will do.
      * Entries will contain date/time, swiped ids, and results of authentication (enum)
      * (cancelled, approved, failed)
      * 
@@ -721,19 +869,34 @@ public final class Model implements Serializable{
     {
         if(Admin_Authentication_Popup())
         {
-            if(JOptionPane.showConfirmDialog(null, "DELETE ALL RESIDENTS IN DATABASE? \nTHIS CANNOT BE UNDONE", "Delete Residents", JOptionPane.OK_CANCEL_OPTION)== JOptionPane.OK_OPTION)
+            if(JOptionPane.showConfirmDialog(null, "DELETE ALL RESIDENTS IN DATABASE? \nTHIS CANNOT BE UNDONE", "Delete Residents", JOptionPane.OK_CANCEL_OPTION)== JOptionPane.OK_OPTION){
                 synchronized(residents)  {   residents.clear();  }
+                ViewerController.showTimedInfoDialog("Deletion Successful", "Database Deletion Completed", 2);
+            }
+            else
+                ViewerController.showTimedInfoDialog("Deletion Cancelled", "Database Deletion Cancelled", 2);
         }
     }
     
     /**
      * Utilizes poi-3.9 java project to import excel files
+     * NOTE: LICENCSE FILE ADDITION
+     * 
+     * Self-contained function to support importing resident information into database
+     * 
+     * Currently, this information is: Student ID, Last Name, First Name, and 
+     * Bedspace. 
+     * 
+     * Function evolves with resident class and may soon include resident
+     * contact information
+     * 
      */
     protected void excelImport()
     {
         try {
             JFileChooser fileChooserGUI = new JFileChooser(); //File Chooser window for user
             String[] acceptedFileTypes = {"xls", "xlsx", "xlsm"}; //restricts files to excel files
+            fileChooserGUI.setFileFilter(new FileNameExtensionFilter(null, acceptedFileTypes)); //restrict file types
             
             TreeSet<Integer> usedRowsSet = new TreeSet<>(); //set to keep track of non-empty rows for sample
             TreeSet<Integer> usedColumnsSet = new TreeSet<>();  //set to keep track of non-empty columns for sample
@@ -743,8 +906,9 @@ public final class Model implements Serializable{
             JTable selectorTable; //Table used to display sample of rows/columns
             Object[][] tableData; //populated with non-empty rows/columns of sample sets
             Object[] tableHeaders; //Column headers (numbers 1 to # of columns)
+           
                                     
-            fileChooserGUI.setFileFilter(new FileNameExtensionFilter(null, acceptedFileTypes)); //restrict file types
+
             
             if(previous_excel_path != null && previous_excel_path.exists()) //set default fileChooser location to previous location if valid
                 fileChooserGUI.setCurrentDirectory(previous_excel_path);
@@ -811,32 +975,46 @@ public final class Model implements Serializable{
             for(int i = 0; i<usedColumnsSet.size(); i++) //create table headers
                 tableHeaders[i] = i+1;
             
-            selectorTable = new JTable(tableData, tableHeaders); //create table 
+            //create uneditable table
+            selectorTable = new JTable(tableData, tableHeaders) { 
+                @Override
+                public boolean isCellEditable(int i, int j)
+                {
+                    return false;
+                }
+            };
+
             selectorTable.setPreferredScrollableViewportSize(new Dimension(700, 300)); //MAGIC NUMBERS
             ColumnsAutoSizer.sizeColumnsToFit(selectorTable); //Autosizer function for tables
             selectorTable.setFillsViewportHeight(true);
-            JScrollPane scoller = new JScrollPane(selectorTable); //add scroll pane to table
             
+            int[] temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a user ID");
+            if(temp == null || temp[1] > usedColumnsArr.length){
+                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
+                return;
+            }
+            ID_COLUMN_NUMBER = usedColumnsArr[temp[1]];
             
-            Object[] message = {"Please select ONE cell that contains a user ID", scoller};
-            if(JOptionPane.showConfirmDialog(null, message, "Select ID", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return; //Error message please
-            ID_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
-
-            Object[] message2 = {"Please select ONE cell that contains a LAST name",scoller};
-            if(JOptionPane.showConfirmDialog(null, message2, "Select Last Name", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return; //Error message please
-            LAST_NAME_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
-
-            Object[] message3 = {"Please select ONE cell that contains a FIRST name",scoller};
-            if(JOptionPane.showConfirmDialog(null, message3, "Select First Name", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return; //Error message please
-            FIRST_NAME_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
-
-            Object[] message4 = {"Please select ONE cell that contains a BedSpace (ex: CVA-000)",scoller};
-            if(JOptionPane.showConfirmDialog(null, message4, "Select Bed Space", JOptionPane.OK_CANCEL_OPTION)!=JOptionPane.OK_OPTION || selectorTable.getSelectedColumn() < 0 || selectorTable.getSelectedColumn() > usedColumnsArr.length-1)
-                return; //Error message please
-            BEDSPACE_COLUMN_NUMBER = usedColumnsArr[selectorTable.getSelectedColumn()];
+            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a LAST name");
+            if(temp == null || temp[1] > usedColumnsArr.length){
+                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
+                return;
+            }
+            LAST_NAME_COLUMN_NUMBER = usedColumnsArr[temp[1]];
+            
+            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a FIRST name");
+            if(temp == null || temp[1] > usedColumnsArr.length){
+                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
+                return;
+            }
+            FIRST_NAME_COLUMN_NUMBER = usedColumnsArr[temp[1]];
+            
+            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a BedSpace (ex: CVA-000)");
+            if(temp == null || temp[1] > usedColumnsArr.length){
+                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
+                return;
+            }
+            BEDSPACE_COLUMN_NUMBER = usedColumnsArr[temp[1]];
 
             for(Iterator<Row> rowIterator = sheet.iterator(); rowIterator.hasNext(); ) 
             {
@@ -865,12 +1043,11 @@ public final class Model implements Serializable{
         }   
         catch (HeadlessException | IOException | NoSuchElementException e) 
         {
+            JOptionPane.showMessageDialog(null, "An Error Occured while attempting to import."
+                    + "\nPlease check that this is a valid Excel file."
+                    + "\nIt may help to use 'Save As' and create a new excel file to attempt to import from", 
+                    "Internal Error Occured", JOptionPane.ERROR_MESSAGE);
         }
     }
+
 }
-    
-/*---------NOTES -------------
-   
-     * IMPORTANT: COLUMN WHERE DESIRED LOCATION IS HARD CODED. PERHAPS A LATER FEATURE WILL ALLOW THE USER TO SELECT THE COLUMNS
-     * Split Bedspace into building and room/bed? No, not helpful for future with new buildings. Modify resident class to just directly accept room string
-*/

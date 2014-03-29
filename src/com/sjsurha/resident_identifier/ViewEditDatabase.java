@@ -4,14 +4,19 @@
  */
 package com.sjsurha.resident_identifier;
 
-import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.FileNotFoundException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextPane;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
  *
@@ -58,7 +63,7 @@ public final class ViewEditDatabase extends JPanel
         adminButtonPanel.add(removeAdmin);
         
         mergeDatabase = new JButton("Merge with Existing Database");
-        mergeDatabase.setEnabled(false);//mergeDatabase.addActionListener(mergeActionListener());
+        mergeDatabase.addActionListener(mergeActionListener());
         adminButtonPanel.add(mergeDatabase);
 
         importResidents = new JButton("Import Residents");
@@ -159,6 +164,54 @@ public final class ViewEditDatabase extends JPanel
             }
         };
     }
+    
+    private ActionListener mergeActionListener() {
+        //NOTE: JFILECHOOSER IS CAUSING THREAD EXCEPTIONS
+        //Replication: Start program, click Merge button, close window and close program
+        //EXCEPTION THROWN: "Exception while removing reference"
+        //Exception does not appear to affect seal operation
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                
+                final JFileChooser fileChooserGUI = new JFileChooser(); //File Chooser window for user
+                
+                
+                JCheckBox checkAdmins = new JCheckBox("Import Admins"), 
+                        checkEvents = new JCheckBox("Import Events"), 
+                        checkResidents = new JCheckBox("Import Residents");
+
+                JPanel checkBoxesPanel = new JPanel();
+                
+                //restrict files to sealed model file types
+                String fileType = ViewerController.SEALED_MODEL_FILE_NAME.substring(ViewerController.SEALED_MODEL_FILE_NAME.lastIndexOf('.')+1);
+                fileChooserGUI.setFileFilter(new FileNameExtensionFilter("Sealed Model Files (.ser)", fileType));
+                fileChooserGUI.setAcceptAllFileFilterUsed(false);
+                
+                //create JPanel to hold checkboxes
+                checkBoxesPanel.add(checkAdmins);
+                checkBoxesPanel.add(checkEvents);
+                checkBoxesPanel.add(checkResidents);                
+                
+                //Open file chooser and check for invalid file 
+                if(fileChooserGUI.showOpenDialog(null) != JFileChooser.APPROVE_OPTION 
+                    || fileChooserGUI.getSelectedFile() == null 
+                    || !fileChooserGUI.getSelectedFile().exists())
+                { fileChooserGUI.approveSelection(); return; }
+
+                try {
+                    Model modelIn = ViewerController.unseal(fileChooserGUI.getSelectedFile(), ViewerController.initializeSealedObject(checkBoxesPanel));
+                    model.mergeDatabase(modelIn, checkAdmins.isSelected(), checkEvents.isSelected(), checkResidents.isSelected());
+                } catch (        CEEncryptionErrorException | FileNotFoundException ex) {
+                    Logger.getLogger(ViewEditDatabase.class.getName()).log(Level.SEVERE, null, ex);
+                    //Error Message Please
+                } finally {
+                    updateText();
+                }
+            }
+        };
+    }
 
     private ActionListener addResidentActionListener()
     {
@@ -195,5 +248,4 @@ public final class ViewEditDatabase extends JPanel
             }
         };
     }
-
 }

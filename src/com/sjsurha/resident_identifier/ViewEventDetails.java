@@ -128,7 +128,7 @@ public final class ViewEventDetails extends JPanel{
         };
     }
 
-    private ActionListener displayAttendeesActionListener()
+    private ActionListener displayAttendeesActionListener() //Double clicking on attendee opens resident details panel
     {
         return new ActionListener() {
 
@@ -164,7 +164,7 @@ public final class ViewEventDetails extends JPanel{
         };
     }
 
-    private ActionListener displayWaitinglistActionListener()
+    private ActionListener displayWaitinglistActionListener() //double clicking on attendee opens resident details panel
     {
         return new ActionListener() {
 

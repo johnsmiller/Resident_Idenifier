@@ -6,6 +6,7 @@ package com.sjsurha.resident_identifier;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.TreeSet;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
@@ -53,8 +54,19 @@ public final class ViewResidentDetails extends JPanel
                     textArea.setText("Invalid Card");
                     return;
                 }
-                if(model.checkResident(ID))
-                    textArea.setText("Is resident");
+                if(model.checkResident(ID)){
+                    TreeSet<Event> attended = model.getAttendedEvents(ID);
+                    if(attended.size() == 0)
+                        textArea.setText("Is resident\nNo event records");
+                    else {
+                        String message = "Is resident. Attended following events:";
+                        for(Event ev : attended)
+                            message += "\n\t" + ev.getName() + " " + ev.getLongDate() + " " + ev.getTime();
+                        textArea.setText(message);
+                    }
+                    
+                    
+                }
                 else
                     textArea.setText("Is NOT resident");
             }

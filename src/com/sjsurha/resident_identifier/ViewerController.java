@@ -4,8 +4,11 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -24,8 +27,12 @@ import javax.crypto.SealedObject;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.Timer;
 import javax.swing.text.JTextComponent;
 
 /**
@@ -35,21 +42,23 @@ import javax.swing.text.JTextComponent;
  * @version .7 - Development/Initial Release
  */
 public final class ViewerController implements Runnable{
+
     private static Model model; //Model that maintains all events, residents, and has all functions to edit them
     private static SealObject sealer; //Object containing current session's password & encryption methods
-    private final static String curFile = "sealedModel0.ser"; //Name of local encrypted database. Used for unsealing/sealing/autosaving
-    private final int autosaveDuration = 120 * 1000; //Time in miliseconds that the program automatically saves the edited model
+    private final int AUTOSAVE_DURATION = 120 * 1000; //Time in miliseconds that the program automatically saves the edited model
+    
+    final static String SEALED_MODEL_FILE_NAME = "sealedModel0.ser"; //Name of local encrypted database. Used for unsealing/sealing/autosaving
         
     /**
-     * Constructor decrypts serialized model instance at curFile or creates new model if one does not exist
+     * Constructor decrypts serialized model instance at SEALED_MODEL_FILE_NAME or creates new model if one does not exist
      * 
      * @throws CEEncryptionErrorException - Thrown if Encryption/Decryption fails due to bad/no password or if internal error (bad algorithm, etc);
      */
     public ViewerController() throws CEEncryptionErrorException, CEAuthenticationFailedException
     {
         try {
-            initialize();
-            unseal();
+            sealer = initializeSealedObject(null);
+            model = unseal(SEALED_MODEL_FILE_NAME, sealer);
         } catch (FileNotFoundException ex) {
                 model = new Model();
         } finally {
@@ -59,16 +68,19 @@ public final class ViewerController implements Runnable{
     }
     
     /**
-     * Initializes SealObject with input password. 
-     * If previous encrypted container exists, exits program for invalid password, sets container's password if it does not exist
+     * Initializes SealObject with input password. Used to decrypt Model Objects
+     * 
+     * @param panel Optional component to display on password entry window.
+     * Can be null
+     * @return a SealObject initialized with the given password
      * @throws CEEncryptionErrorException 
      */
     
-    private void initialize() throws CEEncryptionErrorException
+    protected static SealObject initializeSealedObject(final JPanel panel) throws CEEncryptionErrorException
     {
         try{
             JPasswordField psswrd = new JPasswordField(10);
-            final Object[] message = {"Enter Decryption Password:", psswrd};
+            final Object[] message = {"Enter Decryption Password:", psswrd, panel};
             final String[] options = {"OK", "Cancel"};
             JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, message[1]);
             final JDialog diag = pane.createDialog("Database Decryption");
@@ -77,7 +89,7 @@ public final class ViewerController implements Runnable{
             if(psswrd.getPassword() == null || psswrd.getPassword().length == 0 || pane.getValue() == null || pane.getValue() == JOptionPane.CLOSED_OPTION || pane.getValue().equals(options[1]))
                 throw new InvalidKeyException("User did not enter a password for decryption");
             
-            sealer = new SealObject(new String(((JPasswordField)message[1]).getPassword()));
+            return new SealObject(new String(((JPasswordField)message[1]).getPassword()));
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);
             throw new CEEncryptionErrorException("Bad decryption (non-user-caused error)");
@@ -97,6 +109,78 @@ public final class ViewerController implements Runnable{
             }
         };
     }
+    
+     /**
+     * Displays a dialog with a scrollable, double-click enabled JTable.
+     * Returns the Row/Column clicked or null if Canceled/Exited
+     * 
+     * @param table The prepared JTable to be encapsulated in a JScollPane and
+     * a mouse event listener added
+     * @param message the message to be displayed
+     * @return Row and Column (index 0 and 1 respectively) or null if no input
+     */
+    public static int[] jTableDialog(JTable table, String message)
+    {
+        JScrollPane scroller = new JScrollPane(table); //add scroll pane to table
+        
+        Object[] mssg = {message, scroller};
+        Object[] options = {"OK", "Cancel"};
+        
+        JOptionPane pane = new JOptionPane(mssg, JOptionPane.QUESTION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, scroller);
+        
+        final JDialog dialog = pane.createDialog("Please make a selection");
+        
+        table.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if(e.getClickCount()==2) {
+                        dialog.dispose();
+                }   
+            }
+        });
+        
+        dialog.setVisible(true);
+        
+        if(table.getSelectedRow() == -1 || table.getSelectedColumn() == -1 || pane.getValue() == JOptionPane.CLOSED_OPTION || options[1].equals(pane.getValue()))
+            return null;
+        
+        int[] ret = {table.getSelectedRow(), table.getSelectedColumn()};
+        
+        return ret;
+    }
+    
+    /**
+     * Shows a JDialog with a Title of title, Message of message, for a duration
+     * of seconds. After seconds duration has elapsed or the user clicks 'OK' or
+     * closes the window, the dialog is disposed.
+     * 
+     * Future version of this function will display and update the time
+     * remaining before the dialog box is closed
+     * 
+     * @param title Title of JDialog
+     * @param message Message displayed
+     * @param seconds Duration before dialog is automatically closed
+     */
+    
+    public static void showTimedInfoDialog(String title, String message, int seconds)
+    {
+        final Object[] options = {"OK (" + seconds + "s)"};
+        JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, options[0]);
+        final JDialog dialog = pane.createDialog(title);
+        Timer timer = new Timer(1000*seconds, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dialog.setVisible(false);
+                dialog.dispose();
+            }
+        });
+        timer.setRepeats(false);
+        timer.start();
+
+        dialog.setVisible(true);
+    }
+
+
             
     /*
      * Decrypts model class and restores
@@ -104,15 +188,12 @@ public final class ViewerController implements Runnable{
      * @throws FileNotFoundException - File not found or not readable
      * @throws CEEncryptionErrorException - Errors while attempting to decrypt file. Usually bad password
      */
-    private synchronized void unseal() throws FileNotFoundException, CEEncryptionErrorException
+    protected static synchronized final Model unseal(File file, SealObject sealerIn) throws FileNotFoundException, CEEncryptionErrorException
     {
-        try{
-          ObjectInputStream input = new ObjectInputStream(new BufferedInputStream(new FileInputStream(curFile)));
-          model = sealer.decrypt((SealedObject)input.readObject());
-          input.close();
-          return;
-        }
-        catch(ClassNotFoundException | IOException ex){
+
+        try (ObjectInputStream input = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
+            return sealerIn.decrypt((SealedObject)input.readObject());
+        } catch(ClassNotFoundException | IOException ex){
             JOptionPane.showMessageDialog(null, "ERROR: Unable to read previous data. Assuming first time run. All data has been lost. \nPlease create a new admin on the next screen", "Decryption Failure", JOptionPane.ERROR_MESSAGE);
             throw new FileNotFoundException("Previous data unreadable. Attempting to create new file");
         } catch (IllegalBlockSizeException | BadPaddingException ex) {
@@ -121,23 +202,30 @@ public final class ViewerController implements Runnable{
         }
     }
     
+    protected static synchronized final Model unseal(String fileName, SealObject sealerIn) throws FileNotFoundException, CEEncryptionErrorException
+    {
+        return unseal(new File(fileName), sealerIn);
+    }
+    
     /*
      * Encrypts model class and saves to file
      *
      * @throws IOException File not writable. Most likely encrypted container file is in use by other process
      * @throws CEEncryptionErrorException Error while encrypting. This should not happen unless data corruption while program runs
      */
-    private synchronized final void seal() throws IOException, CEEncryptionErrorException
+    protected static synchronized final void seal(Model modelIn, File file, SealObject sealerIn) throws IOException, CEEncryptionErrorException
     {
-        try {
-            ObjectOutputStream output = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(curFile)));
-            output.writeObject(sealer.encrypt(model));
-            output.close();
-            return;
+        try (ObjectOutputStream output = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(file)))) {
+            output.writeObject(sealerIn.encrypt(modelIn));
         } catch (IllegalBlockSizeException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);
             throw new CEEncryptionErrorException("Seal method of sealer threw IllegalBlockSize. Encryption error");
         }
+    }
+    
+    protected static synchronized final void seal(Model modelIn, String fileName, SealObject sealerIn) throws IOException, CEEncryptionErrorException
+    {
+        seal(modelIn, new File(fileName), sealerIn);
     }
             
     /**
@@ -239,7 +327,7 @@ public final class ViewerController implements Runnable{
     public void run() {
         try {
             model.removeAllEventListeners();
-            seal();
+            seal(model, SEALED_MODEL_FILE_NAME, sealer);
         } catch (IOException | CEEncryptionErrorException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -247,9 +335,6 @@ public final class ViewerController implements Runnable{
     
     /**
      * Thread to ensure model is written to file for a set time period.
-     * 
-     * ISSUE: Is causing a HashMap (admins or residents) in model to throw 
-     * concurrent modification exception
      */
     
     private void autosaveThread()
@@ -259,11 +344,11 @@ public final class ViewerController implements Runnable{
             public void run() {
                 while(true){
                     try{
-                        Thread.sleep(autosaveDuration); 
+                        Thread.sleep(AUTOSAVE_DURATION); 
                     } catch (InterruptedException ex) {
                     } finally {
                         try {   
-                            seal(); 
+                            seal(model, SEALED_MODEL_FILE_NAME, sealer); 
                         } 
                         catch (IOException | CEEncryptionErrorException ex) {}
                     }
@@ -299,18 +384,18 @@ public final class ViewerController implements Runnable{
         //Drop downs for hour/min selections?   --done
     //Edit Event 
         //Resident Sign-in  --(remove signed-in resident) --done
-        //Change Event (admin) 
+        //Change Event (admin) --done
         //Delete Event? (admin) --done
     //Print Event Details (admin)
-    //Print Events a Resident has attended?? (Admin) (future dev?)
+    //Print Events a Resident has attended?? (Admin) (future dev?) --done
         //Print attended events
-            //(Differentiate between card swipe and manual entry
-            //Bring up print event details for a selected event (future dev)
+            //(Differentiate between card swipe and manual entry) -- Not done
+            //Bring up print event details for a selected event (future dev) --Not done
     //Student Management (admin)
-        //Import New resident records
-        //Add/Delete Residents?????
+        //Import New resident records --done
+        //Add/Delete Residents????? --done
 
-    //Choose Event - separate pane that shows up for:
+    //Choose Event - separate pane that shows up for: --Changed to JComboBox
         //Resident Sign-in (admin authentication to change event)
         //All other Edit event items
         //Print Event
