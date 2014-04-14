@@ -28,7 +28,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.swing.ComboBoxModel;
 import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
@@ -46,10 +45,11 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  * @version .7 - Development
  */
 
-//Serialize (store data) when main thread closed -- Done
 //Set-up function to store Model's individual private members in case model class changed after program is implemented.
 //Handle an event that check in a student multiple times?? (future dev?) --Done
 //Handle checking attendance across several events?? (future dev?) (Neccessary?)
+//Handle checking in non-residents?
+//Pull residence halls' names from bedspace
 public final class Model implements Serializable{
     private static final long serialVersionUID = 2L;
     
