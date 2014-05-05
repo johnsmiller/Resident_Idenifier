@@ -8,6 +8,10 @@ package com.sjsurha.resident_identifier;
 //                          printout statistics by hall
 
 //Password encrypting requires java 6 or later
+import com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedException;
+import com.sjsurha.resident_identifier.Exceptions.CEDuplicateAttendeeException;
+import com.sjsurha.resident_identifier.Exceptions.CEMaximumAttendeesException;
+import com.sjsurha.resident_identifier.Exceptions.CENonResidentException;
 import java.awt.Dimension;
 import java.awt.HeadlessException;
 import java.io.File;
@@ -151,6 +155,8 @@ public final class Model implements Serializable{
             residents.putAll(modelIn.residents);
         }
         
+        ViewerController.saveModel();
+        
         return ret;
     }
 
@@ -161,17 +167,19 @@ public final class Model implements Serializable{
      *
      * @param id Student ID to check for residency & event participation
      * @param event Event to check ID against
+     * @param disableRecheckinPrompt if true, suppresses prompt to ask if user 
+     *  wants to update check-in time for attendees
      * @return Returns True if Resident & has not yet attended event
      * @throws CEDuplicateAttendeeException Thrown if Resident has already attended event
      * @throws CENonResidentException Thrown if Student ID does not exist in Resident hashmap
      * @throws CEMaximumAttendeesException Thrown if Event has reached the maximum number of Residents that can attend an event
      */
-    protected synchronized boolean addAttendee(String id, Event event) throws CEDuplicateAttendeeException, CENonResidentException, CEMaximumAttendeesException
+    protected synchronized boolean addAttendee(String id, Event event, boolean disableRecheckinPrompt) throws CEDuplicateAttendeeException, CENonResidentException, CEMaximumAttendeesException
     {
         //RequestCheck();
         if(id == null || !residents.containsKey(id))
             throw new CENonResidentException("Student ID not in Resident Database");//Change to JDialog?
-        return event.validAttendee(id);     
+        return event.validAttendee(id, disableRecheckinPrompt);     
     }
     
      /**
@@ -619,8 +627,8 @@ public final class Model implements Serializable{
      * on
      * 
      * @param ID the ID to search for in all events
-     * @return a TreeSet<Event> with synchronized add function containing all
-     * events this resident attended.
+     * @return a TreeSet (of type Event) with synchronized add function 
+     * containing all events this resident attended.
      */
     
     protected TreeSet<Event> getAttendedEvents(String ID)
@@ -663,7 +671,12 @@ public final class Model implements Serializable{
     
     private boolean addAdmin(String ID)
     {
-        return admins.add(ID);
+        if(admins.add(ID))
+        {
+            ViewerController.saveModel();
+            return true;
+        }
+        return false;
     }
     
     /**
@@ -680,7 +693,12 @@ public final class Model implements Serializable{
     
     private boolean removeAdmin(String ID)
     {
-        return admins.remove(ID);
+        if(admins.remove(ID))
+        {
+            ViewerController.saveModel();
+            return true;
+        }
+        return false;
     }
     
     /**
@@ -689,7 +707,6 @@ public final class Model implements Serializable{
      * An existing admin is required to authenticate before adding the new admin
      * 
      * @return true if an existing admin is authenticated and a new admin is created
-     * @throws AuthenticationFailedException
      */
     protected boolean adminCreation()
     {

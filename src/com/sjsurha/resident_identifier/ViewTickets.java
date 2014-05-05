@@ -330,7 +330,11 @@ public final class ViewTickets extends JPanel
             {
                 super(new DefaultTableModel());
             }
-
+            
+            /**
+             * THIS FUNCTION AND ALL OTHER USES OF ITEXTPDF TO BE REMOVED IN FUTURE VERSIONS
+             * Research into alternative approaches. If I can do it, it'd be better
+             */
             public void save()
             {
                 Document document = new Document(PageSize.LETTER.rotate());

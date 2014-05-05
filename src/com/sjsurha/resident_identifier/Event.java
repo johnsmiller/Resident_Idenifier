@@ -1,5 +1,7 @@
 package com.sjsurha.resident_identifier;
 
+import com.sjsurha.resident_identifier.Exceptions.CEDuplicateAttendeeException;
+import com.sjsurha.resident_identifier.Exceptions.CEMaximumAttendeesException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -140,7 +142,7 @@ public final class Event implements Comparable<Event>, Serializable{
     /**
      *
      * @param ID Resident ID to check in
-     * @param disableRecheckinPrompt if true, does not prompt to update check in
+     * @param suppressCheckinPrompt if true, does not prompt to update check in
      *  time
      * @return true if the resident is successfully checked in / check in time
      *  is updated
@@ -148,10 +150,12 @@ public final class Event implements Comparable<Event>, Serializable{
      *  waitlisted for this event
      * @throws CEMaximumAttendeesException if maximum attendees is reached
      */
-    public boolean validAttendee(String ID/*, boolean disableRecheckinPrompt*/) throws CEDuplicateAttendeeException, CEMaximumAttendeesException
+    public boolean validAttendee(String ID, boolean suppressCheckinPrompt) throws CEDuplicateAttendeeException, CEMaximumAttendeesException
     {
         boolean wait = false; //To prevent searching an arraylist multiple times
         if(isAttendee(ID) || (wait = isWaitlisted(ID))){
+            if(suppressCheckinPrompt)
+                throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
            GregorianCalendar time = attendees.get(ID);
            if(wait){
                ArrayList<String> temp = new ArrayList<>(waitinglist.values());
@@ -178,7 +182,7 @@ public final class Event implements Comparable<Event>, Serializable{
            }
         } else if(maxAttendee() && !autoWaitlist){
             if(maxAttendeeHandler())
-                return validAttendee(ID);
+                return validAttendee(ID, suppressCheckinPrompt);
             else
                 return false;
         }

@@ -1,8 +1,11 @@
 package com.sjsurha.resident_identifier;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.ComboBoxModel;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
@@ -48,6 +51,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         if(super.add(e)) {
             comboBoxModelSelectedItem = e;
             modelListenersNotify();
+            ViewerController.saveModel();
             return true;
         }
         return false;
@@ -60,6 +64,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
             if(comboBoxModelSelectedItem.equals(o))
                 comboBoxModelSelectedItem = ((this.size()>0)? this.first() : null);
             modelListenersNotify();
+            ViewerController.saveModel();
             return true;
         }
         return false;
@@ -70,6 +75,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
     {
         if(super.addAll(c)){
             modelListenersNotify();
+            ViewerController.saveModel();
             return true;
         }
         return false;  

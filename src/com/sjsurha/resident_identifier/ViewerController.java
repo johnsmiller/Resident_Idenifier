@@ -1,5 +1,7 @@
 package com.sjsurha.resident_identifier;
 
+import com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedException;
+import com.sjsurha.resident_identifier.Exceptions.CEEncryptionErrorException;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.event.ActionEvent;
@@ -86,7 +88,7 @@ public final class ViewerController implements Runnable{
             final JDialog diag = pane.createDialog("Database Decryption");
             psswrd.addActionListener(disposeDialogActionListener(diag));
             diag.setVisible(true);
-            if(psswrd.getPassword() == null || psswrd.getPassword().length == 0 || pane.getValue() == null || pane.getValue() == JOptionPane.CLOSED_OPTION || pane.getValue().equals(options[1]))
+            if(psswrd.getPassword() == null || psswrd.getPassword().length == 0 || pane.getValue() == null || pane.getValue().equals(options[1]))
                 throw new InvalidKeyException("User did not enter a password for decryption");
             
             return new SealObject(new String(((JPasswordField)message[1]).getPassword()));
@@ -141,7 +143,7 @@ public final class ViewerController implements Runnable{
         
         dialog.setVisible(true);
         
-        if(table.getSelectedRow() == -1 || table.getSelectedColumn() == -1 || pane.getValue() == JOptionPane.CLOSED_OPTION || options[1].equals(pane.getValue()))
+        if(table.getSelectedRow() == -1 || table.getSelectedColumn() == -1 || options[1].equals(pane.getValue()))
             return null;
         
         int[] ret = {table.getSelectedRow(), table.getSelectedColumn()};
@@ -287,6 +289,13 @@ public final class ViewerController implements Runnable{
     /**
      * Launches new thread and updates following fields as described once delay has elapsed
      * 
+     * DOES NOT CHECK IF THE FIELDS HAVE HAD ANOTHER VERSION OF THIS THREAD LAUNCHED
+     * For instance: Checking two people in within 2 seconds. Field reset 2 seconds after 1st check-in
+     * 
+     * Create new class / interface that keeps local update value (most recent system.nanoseconds)
+     *  updated for every thread launched
+     *  setColor() and SetText() methods
+     * 
      * @param textField array of JTextComponents. Updated with text after milisecDuration miliseconds
      * @param colorField array of Components who's setBackground() method is called with color after milisecDuration
      * @param text string to update JTextComponents with
@@ -299,12 +308,24 @@ public final class ViewerController implements Runnable{
         Thread t1 = new Thread(new Runnable() {
             @Override
             public void run() {
+                
+                /*Component comp = new Component() {public long modified = System.nanoTime(); @Override public String toString() { return null;}};
+                for(JTextComponent j : textField){
+                    //Set variable to check to update
+                    j.add(comp);
+                }*/
                 try {   Thread.sleep(milisecDuration);  } 
                 catch (InterruptedException ex) {} 
                 finally {
                     for(JTextComponent j : textField){
-                        j.setText(text);
-                        j.repaint();
+                        //If variable has not changed
+                        /*Component[] temp = j.getComponents();
+                        if(temp[temp.length-1].equals(comp)){*/
+                            j.setText(text);
+                            j.repaint();
+                        //}
+                        //j.remove(comp);
+                        //Else do not update
                     }
                     for(Component c :colorField){
                         c.setBackground(color);
@@ -325,8 +346,12 @@ public final class ViewerController implements Runnable{
      */
     @Override
     public void run() {
+        model.removeAllEventListeners();
+        saveModel();
+    }
+    
+    protected static synchronized void saveModel() {
         try {
-            model.removeAllEventListeners();
             seal(model, SEALED_MODEL_FILE_NAME, sealer);
         } catch (IOException | CEEncryptionErrorException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);
@@ -347,10 +372,7 @@ public final class ViewerController implements Runnable{
                         Thread.sleep(AUTOSAVE_DURATION); 
                     } catch (InterruptedException ex) {
                     } finally {
-                        try {   
-                            seal(model, SEALED_MODEL_FILE_NAME, sealer); 
-                        } 
-                        catch (IOException | CEEncryptionErrorException ex) {}
+                        saveModel();
                     }
                 }
             }

@@ -1,11 +1,12 @@
 package com.sjsurha.resident_identifier;
 
 
+import com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedException;
+import com.sjsurha.resident_identifier.Exceptions.CEEncryptionErrorException;
 import java.awt.Dimension;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
-
 import javax.swing.JOptionPane;
 
 

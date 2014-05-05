@@ -220,7 +220,7 @@ public final class ViewEventDetails extends JPanel{
                 
                 diag.setVisible(true);
                 
-                if(Increase_Field.getText() == null || Increase_Field.getText().length() == 0 || pane.getValue() == null || pane.getValue() == JOptionPane.CLOSED_OPTION || pane.getValue().equals(options[1]))
+                if(Increase_Field.getText() == null || Increase_Field.getText().length() == 0 || pane.getValue() == null || pane.getValue().equals(options[1]))
                     return;
                 
                 try{

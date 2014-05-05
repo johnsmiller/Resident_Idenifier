@@ -4,6 +4,7 @@
  */
 package com.sjsurha.resident_identifier;
 
+import com.sjsurha.resident_identifier.Exceptions.CEEncryptionErrorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.FileNotFoundException;
@@ -220,7 +221,8 @@ public final class ViewEditDatabase extends JPanel
             @Override
             public void actionPerformed(ActionEvent e) {
                 String ID = (String)JOptionPane.showInputDialog(null,"Please swipe Resident's Student ID card:", "Student ID",JOptionPane.QUESTION_MESSAGE);
-                if(ID == null || ID.length()<10){
+                ID = ViewerController.extractID(ID);
+                if(ID == null){
                     JOptionPane.showMessageDialog(null, "Error: Card not read, please try again.");
                     return;
                 }
@@ -243,7 +245,7 @@ public final class ViewEditDatabase extends JPanel
                     return;
                 }
 
-                model.addResident(ID.substring(1, 10), lastName, firstName, bedSpace);
+                model.addResident(ID, lastName, firstName, bedSpace);
                 updateText();
             }
         };
