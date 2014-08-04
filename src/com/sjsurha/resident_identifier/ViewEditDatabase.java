@@ -5,6 +5,8 @@
 package com.sjsurha.resident_identifier;
 
 import com.sjsurha.resident_identifier.Exceptions.CEEncryptionErrorException;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.FileNotFoundException;
@@ -16,6 +18,8 @@ import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JTextPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
@@ -27,69 +31,88 @@ public final class ViewEditDatabase extends JPanel
 {
     private final Model model;
     private final JTextPane currentResCount;
-    private final JPanel buttonPanel;
-    
-    private final JButton importResidents;
-    private final JButton addResident;
-    private final JButton deleteResidents; //DELETE ALL RESIDENTS BUTTON
-    
-    private final JButton mergeDatabase;
-    
-    private final JButton deleteEvents;
+    private final JPanel adminAndUserPanel;
+    private final JPanel databasePanel;
+    private final JPanel loggingPanel;
             
     private final JButton addAdmin;
     private final JButton removeAdmin;
-
+    private final JButton addUser;
+    private final JButton removeUser;
+    private final JButton resetPin;
+    private final JButton importResidents;
+    private final JButton addResident;
+    private final JButton deleteResidents; //DELETE ALL RESIDENTS BUTTON
+    private final JButton deleteEvents;  
+    //private final JButton editVariables;
+    private final JButton mergeDatabase;  
+    private final JButton viewLog;
+    //private final JButton clearLog;
+    
     public ViewEditDatabase(Model ModelIn)
     {
         super();
+        model = ModelIn;
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         
-        model = ModelIn;
-
-        currentResCount = new JTextPane();
-        updateText();
-        currentResCount.setEditable(false);
-        this.add(currentResCount);
-        
-        JPanel adminButtonPanel = new JPanel();
-        JPanel residentButtonPanel = new JPanel();
-                
         addAdmin = new JButton("Add New Admin");
-        addAdmin.addActionListener(addAdminActionListener());
-        adminButtonPanel.add(addAdmin);
-        
         removeAdmin = new JButton("Remove Admin");
-        removeAdmin.addActionListener(removeAdminActionListener());
-        adminButtonPanel.add(removeAdmin);
-        
-        mergeDatabase = new JButton("Merge with Existing Database");
-        mergeDatabase.addActionListener(mergeActionListener());
-        adminButtonPanel.add(mergeDatabase);
-
+        addUser = new JButton("Add New User");
+        removeUser = new JButton("Remove User");
+        resetPin = new JButton("Reset Pin");
         importResidents = new JButton("Import Residents");
-        importResidents.addActionListener(importActionListener());
-        residentButtonPanel.add(importResidents);
-
         addResident = new JButton("Manually Add Resident");
-        addResident.addActionListener(addResidentActionListener());
-        residentButtonPanel.add(addResident);
-
         deleteResidents = new JButton("Delete All Residents");
-        deleteResidents.addActionListener(deleteResidents());
-        residentButtonPanel.add(deleteResidents);
-        
         deleteEvents = new JButton("Delete All Events");
+        //editVariables;
+        mergeDatabase = new JButton("Merge with Existing Database");
+        viewLog = new JButton("View Log Entries");
+        //clearLog = new JButton("Clear Log");
+        
+        addAdmin.addActionListener(addAdminActionListener());       
+        removeAdmin.addActionListener(removeAdminActionListener());
+        addUser.addActionListener(addUserActionListener());
+        removeUser.addActionListener(removeUserActionListener());
+        resetPin.addActionListener(resetPinActionListener());
+        importResidents.addActionListener(importActionListener());
+        addResident.addActionListener(addResidentActionListener());        
+        deleteResidents.addActionListener(deleteResidents());
         deleteEvents.addActionListener(deleteEventsActionListener());
-        residentButtonPanel.add(deleteEvents);
+        //editVariables
+        mergeDatabase.addActionListener(mergeActionListener());
+        viewLog.addActionListener(viewLogActionListener());
         
-        buttonPanel = new JPanel();
-        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
+//        buttonPanel = new JPanel();
+//        buttonPanel.setLayout(new BoxLayout(buttonPanel, BoxLayout.Y_AXIS));
         
-        buttonPanel.add(adminButtonPanel);
-        buttonPanel.add(residentButtonPanel);
-
-        this.add(buttonPanel);
+        currentResCount = new JTextPane();
+        currentResCount.setEditable(false);
+        updateText();
+        
+        adminAndUserPanel = new JPanel();
+        databasePanel = new JPanel();
+        loggingPanel = new JPanel();
+        
+        adminAndUserPanel.add(addAdmin);
+        adminAndUserPanel.add(removeAdmin);
+        adminAndUserPanel.add(addUser);
+        adminAndUserPanel.add(removeUser);
+        adminAndUserPanel.add(resetPin);
+        databasePanel.add(importResidents);
+        databasePanel.add(addResident);
+        databasePanel.add(deleteResidents);
+        databasePanel.add(deleteEvents);
+        //databasePanel.add(programVariables);
+        loggingPanel.add(mergeDatabase); //Yeah, I know. But I need this for visual purposes. Open to suggestions for a better layout scheme
+        loggingPanel.add(viewLog);
+        //loggingPanel.add(clearLog);
+        
+        resetPin.setEnabled(false);
+        
+        this.add(currentResCount);
+        this.add(adminAndUserPanel);
+        this.add(databasePanel);
+        this.add(loggingPanel);
     }
 
     @Override
@@ -102,7 +125,7 @@ public final class ViewEditDatabase extends JPanel
 
     private void updateText()
     {
-        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Residents in Database: " + model.residentCount());
+        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Users in Database: " + model.userCount() + "\nNumber of Residents in Database: " + model.residentCount());
     }
 
     private ActionListener importActionListener()
@@ -111,8 +134,8 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(model.Admin_Authentication_Popup()){
-                    model.excelImport();
+                if(model.authenticationPopup(LogEntry.Level.Administrator, "Import Residents via CSV file")){
+                    model.csvImport();
                     updateText();
                 }
             }
@@ -148,7 +171,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.adminCreation();
+                model.powerUserCreationPopup(LogEntry.Level.Administrator);
                 updateText();
             }
         };
@@ -160,7 +183,31 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.adminRemoval();
+                model.powerUserRemovalPopup(LogEntry.Level.Administrator);
+                updateText();
+            }
+        };
+    }
+    
+    private ActionListener addUserActionListener()
+    {
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                model.powerUserCreationPopup(LogEntry.Level.User);
+                updateText();
+            }
+        };
+    }
+    
+    private ActionListener removeUserActionListener()
+    {
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                model.powerUserRemovalPopup(LogEntry.Level.User);
                 updateText();
             }
         };
@@ -247,6 +294,46 @@ public final class ViewEditDatabase extends JPanel
 
                 model.addResident(ID, lastName, firstName, bedSpace);
                 updateText();
+            }
+        };
+    }
+
+    private ActionListener viewLogActionListener() {
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(!model.authenticationPopup(LogEntry.Level.Administrator, "View Log"))
+                    return;
+                
+                String[] ColumnHeaders = {"Date", "User", "Level", "Result", "Message",};
+                String[][] RowData = model.getLogData();
+                
+                JTable logTable = new JTable(RowData, ColumnHeaders){ 
+                    @Override 
+                    public boolean isCellEditable(int row, int column){  
+                        return false;
+                    }
+                };
+                
+                logTable.setAutoCreateRowSorter(true);
+                logTable.setPreferredScrollableViewportSize(new Dimension(800, 600));
+                //ColumnsAutoSizer.sizeColumnsToFit(logTable);
+                logTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+                logTable.setLayout(new BorderLayout());
+                logTable.getRowSorter().toggleSortOrder(0);
+                logTable.getRowSorter().toggleSortOrder(0);
+                JOptionPane.showConfirmDialog(null, new JScrollPane(logTable, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED), "Log Entries", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
+            }
+        };
+    }
+
+    private ActionListener resetPinActionListener() {
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
             }
         };
     }

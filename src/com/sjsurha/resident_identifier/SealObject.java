@@ -1,11 +1,12 @@
 package com.sjsurha.resident_identifier;
 
-//Code modified from http://stackoverflow.com/questions/6262374/encryption-with-aes-algorithm-in-java
+//Encrpytion approach adpted from http://stackoverflow.com/questions/6262374/encryption-with-aes-algorithm-in-java
 //Used to encrypt/decrypt model class objects
-//THIS CODE HAS BEEN MODIFIED FROM ITS ORIGINAL OWNER. PROPER AUTHOR INFORMAION WILL BE PROVIDED ONCE AVAILABLE
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
@@ -19,19 +20,14 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 /**
  *
- * @author Edited by John
+ * @author John
  */
 public final class SealObject {
-    private final byte[] salt = "a9v5n39s".getBytes();
-    private Cipher cipher;
-    private Cipher dcipher;
+    private static final String salt = "a9v5n39s";
+    private final Cipher cipher;
+    private final Cipher dcipher;
 
     /**
      *
@@ -44,12 +40,12 @@ public final class SealObject {
     public SealObject(String Password) throws NoSuchAlgorithmException, InvalidKeySpecException, NoSuchPaddingException, InvalidKeyException
     {
         char[] password = Password.toCharArray();
-        // Create key
+
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
-        KeySpec spec = new PBEKeySpec(password, salt, 1024, 128);
+        KeySpec spec = new PBEKeySpec(password, salt.getBytes(), 1024, 128);
         SecretKey tmp = factory.generateSecret(spec);
         SecretKey secret = new SecretKeySpec(tmp.getEncoded(), "AES");
-        // Init ciphers
+
         cipher = Cipher.getInstance("AES");
         dcipher = Cipher.getInstance("AES");
         cipher.init(Cipher.ENCRYPT_MODE, secret);
@@ -64,7 +60,7 @@ public final class SealObject {
      * @throws IOException
      * @throws IllegalBlockSizeException
      */
-    public SealedObject encrypt(Model input) throws IOException, IllegalBlockSizeException
+    protected SealedObject encrypt(Model input) throws IOException, IllegalBlockSizeException
     {
         return new SealedObject(input, cipher);
     }
@@ -78,9 +74,43 @@ public final class SealObject {
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException
      */
-    public Model decrypt(SealedObject input) throws IOException, ClassNotFoundException, IllegalBlockSizeException, BadPaddingException
+    protected Model decrypt(SealedObject input) throws IOException, ClassNotFoundException, IllegalBlockSizeException, BadPaddingException
     {
         return (Model) input.getObject(dcipher);
+    }
+    
+    protected static String encryptPass(String Password)
+    {
+        String md5 = null;
+        
+        if(Password == null) 
+            return null;
+        
+        Password = salt + Password;
+        
+        try {
+            //Create MessageDigest object for MD5
+            MessageDigest digest = MessageDigest.getInstance("MD5");
+
+            //Update input string in message digest
+            digest.update(Password.getBytes(), 0, Password.length());
+
+            //Converts message digest value in base 16 (hex) 
+            md5 = new BigInteger(1, digest.digest()).toString(16);
+
+            } catch (NoSuchAlgorithmException e) {}
+        
+            return md5;
+    }
+    
+    protected static boolean passCheck(String passInput, String storedPass)
+    {
+        String md5 = encryptPass(passInput);
+        
+        if(md5 == null || storedPass == null) 
+            return false;
+        
+        return storedPass.equals(md5);
     }
     
 }

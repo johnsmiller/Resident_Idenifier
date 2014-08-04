@@ -97,33 +97,40 @@ public final class ViewCreateEvent extends JPanel
         return new ActionListener(){
             @Override
             public void actionPerformed(ActionEvent e){
-                if(!name_textfield.getText().isEmpty()){
-                    if (model.Admin_Authentication_Popup()){
-                        Calendar cal = date_selection.getCalendar();
-                        String max_partic_string = max_participants_textfield.getText();
-                        Integer max_partic_int = 0;
-                        try{ max_partic_int = Integer.parseInt(max_partic_string); } catch (NullPointerException ex){}
-                        if(max_partic_int > 0) {
-                            Event temp_event = model.createEvent(name_textfield.getText(), cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), hour.getSelectedIndex(), minute.getSelectedIndex()*5, max_partic_int); 
-                            if(temp_event != null) {
-                                clear();
-                            } else
-                                JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);
-                        } else if(!max_partic_string.isEmpty() && !max_partic_string.equalsIgnoreCase("0")){
-                                JOptionPane.showMessageDialog(null, "Invalid Limit of Participants.\nPositive integers only \nEvent not added.", "Event Creation Failure", JOptionPane.ERROR_MESSAGE);
-                        }
-                        else {
-                            Event temp_event = model.createEvent(name_textfield.getText(), cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), hour.getSelectedIndex(), minute.getSelectedIndex()*5); 
-                            if(temp_event != null){
-                                clear();
-                            } else
-                                JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);
-                        }
-                    } else {
-                        JOptionPane.showMessageDialog(null, "Authentication Failed. Event not added.", "Authentication Failure", JOptionPane.ERROR_MESSAGE);
-                    }
-                } else {
+                if(name_textfield.getText().isEmpty()){
                     JOptionPane.showMessageDialog(null, "Event Name cannot be empty. \nEvent not added.", "Event Creation Failure", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                Calendar cal = date_selection.getCalendar();
+                String max_partic_string = max_participants_textfield.getText();
+                Integer max_partic_int = 0;
+                try{ max_partic_int = Integer.parseInt(max_partic_string); } catch (NullPointerException ex){}
+                
+                if(max_partic_int > 0) {
+                    Event temp_event = model.createEvent(name_textfield.getText(), cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), hour.getSelectedIndex(), minute.getSelectedIndex()*5, max_partic_int); 
+                    if(temp_event != null) {
+                        clear();
+                    } else
+                        JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);
+                } 
+                
+                else if(!max_partic_string.isEmpty() && !max_partic_string.equalsIgnoreCase("0")){
+                    JOptionPane.showMessageDialog(null, "Invalid Limit of Participants.\nPositive integers only \nEvent not added.", "Event Creation Failure", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                if (!model.authenticationPopup(LogEntry.Level.User, "New Event: " + name_textfield.getText())){
+                    JOptionPane.showMessageDialog(null, "Authentication Failed. Event not added.", "Authentication Failure", JOptionPane.ERROR_MESSAGE);
+                    return;
+                } 
+                
+                else {
+                    Event temp_event = model.createEvent(name_textfield.getText(), cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), hour.getSelectedIndex(), minute.getSelectedIndex()*5); 
+                    if(temp_event != null){
+                        clear();
+                    } else
+                        JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);                            
                 }
             }
         };

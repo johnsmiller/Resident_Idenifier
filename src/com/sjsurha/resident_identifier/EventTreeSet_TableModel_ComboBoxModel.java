@@ -1,11 +1,8 @@
 package com.sjsurha.resident_identifier;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.TreeSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.ComboBoxModel;
 import javax.swing.event.ListDataEvent;
 import javax.swing.event.ListDataListener;
@@ -33,7 +30,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
     public EventTreeSet_TableModel_ComboBoxModel()
     {
         super();
-        tableBooleanSelection = new boolean[0];
+        tableBooleanSelection = new boolean[super.size()];
         tableModelListeners = new HashSet<>(5);
         comboBoxModelListDataListeners = new HashSet<ListDataListener>(10);
         modelEventArray = this.toArray(new Event[super.size()]);
@@ -45,6 +42,17 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         comboBoxModelListDataListeners = new HashSet<ListDataListener>(10);
     }
 
+    /**
+     * Utilizes add function of TreeSet. If successful, selected item for combo-
+     * box implementation is updated to item just added. Event will not be added
+     * if a duplicate event is found
+     * 
+     * Model is saved to file after Event is added
+     * 
+     * @param e the event to be added to this implementation
+     * @return true if item successfully added (TreeSet parent class' add
+     * function returns true). False otherwise.
+     */
     @Override
     public boolean add(Event e)  //Modify to take in Authenication ID for future logging function
     {
@@ -56,6 +64,18 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         }
         return false;
     }
+    
+    /**
+     * Utilizes TreeSet parent's add function. If it returns true, item is 
+     * removed and, if item is selected in combobox model, selected model is 
+     * updated to first item if size > 0, null otherwise.
+     * 
+     * Model is saved after item is removed
+     * 
+     * @param o the object to be removed from the set
+     * @return true if parent class successfully removes the object. false 
+     * otherwise
+     */
 
     @Override
     public boolean remove(Object o) //Modify to take in Authenication ID for future logging function
@@ -69,11 +89,22 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         }
         return false;
     }
+    
+    /**
+     * Utilizes TreeSet parent's addAll function. If parent function returns
+     * true, the set has changed and, as a result, selected item is updated to 
+     * first item in list and the model is saved to file. 
+     * 
+     * @param c Collection of events to be added to model
+     * @return true if the set has changed as a result of this call, false if 
+     * otherwise
+     */
 
     @Override
     public boolean addAll(Collection<? extends Event> c) //Modify to take in Authenication ID for future logging function
     {
         if(super.addAll(c)){
+            comboBoxModelSelectedItem = this.first();
             modelListenersNotify();
             ViewerController.saveModel();
             return true;
@@ -81,12 +112,17 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         return false;  
     }
 
-
+    /**
+     * Call's TreeSet parent's clear() function, sets the combobox selected
+     * item to null, and notifies the model listeners
+     */
 
     @Override
     public void clear() //Modify to take in Authenication ID for future logging function
     {
         super.clear();
+        comboBoxModelSelectedItem = null;
+        modelListenersNotify();
     }
 
     /*
@@ -116,7 +152,8 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
 
 
     /**
-     * Removes all model listeners to ensure clean program exit (no additional threads running)
+     * Removes all model listeners to ensure clean program exit 
+     * (no additional threads running)
      */
 
     public void removeAllListeners()
@@ -177,6 +214,9 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
 
     @Override
     public Object getValueAt(int rowIndex, int columnIndex) {
+        if(this.size() == 0)
+            return null;
+        
         switch (columnIndex)
         {
             case 0:

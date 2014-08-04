@@ -2,7 +2,6 @@ package com.sjsurha.resident_identifier;
 
 import java.io.Serializable;
 
-//NOTE: THIS WILL BECOME A SUBCLASS OF MODEL AT DISTRIBUTION. CURRENTLY NOT FOR EASE OF TESTING
 public final class Resident implements Serializable{
     private static final long serialVersionUID = 1L;
     

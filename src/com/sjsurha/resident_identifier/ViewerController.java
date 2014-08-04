@@ -49,8 +49,8 @@ public final class ViewerController implements Runnable{
     private static SealObject sealer; //Object containing current session's password & encryption methods
     private final int AUTOSAVE_DURATION = 120 * 1000; //Time in miliseconds that the program automatically saves the edited model
     
-    final static String SEALED_MODEL_FILE_NAME = "sealedModel0.ser"; //Name of local encrypted database. Used for unsealing/sealing/autosaving
-        
+    protected final static String SEALED_MODEL_FILE_NAME = "sealedModel0.ser"; //Name of local encrypted database. Used for unsealing/sealing/autosaving
+    
     /**
      * Constructor decrypts serialized model instance at SEALED_MODEL_FILE_NAME or creates new model if one does not exist
      * 
@@ -101,6 +101,27 @@ public final class ViewerController implements Runnable{
         }
     }
     
+    public static ActionListener switchJTextComponent(final JTextComponent obj1, final JTextComponent obj2, final boolean validateID)
+    {
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(validateID)
+                {
+                    String ID = ViewerController.extractID(obj1.getText());
+                    if(ID == null || !model.checkResident(ID)){
+                        obj1.setText("");
+                        return;
+                    }
+                }
+                obj1.setEditable(false);
+                obj2.setEditable(true);
+                obj2.grabFocus();
+            }
+        };
+    }
+    
     public static ActionListener disposeDialogActionListener(final JDialog diag)
     {       
         return new ActionListener() {
@@ -127,8 +148,8 @@ public final class ViewerController implements Runnable{
         
         Object[] mssg = {message, scroller};
         Object[] options = {"OK", "Cancel"};
-        
-        JOptionPane pane = new JOptionPane(mssg, JOptionPane.QUESTION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, scroller);
+               
+        JOptionPane pane = new JOptionPane(mssg, JOptionPane.PLAIN_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, scroller);
         
         final JDialog dialog = pane.createDialog("Please make a selection");
         
@@ -141,6 +162,7 @@ public final class ViewerController implements Runnable{
             }
         });
         
+        dialog.setResizable(true);
         dialog.setVisible(true);
         
         if(table.getSelectedRow() == -1 || table.getSelectedColumn() == -1 || options[1].equals(pane.getValue()))
@@ -287,6 +309,7 @@ public final class ViewerController implements Runnable{
     }
     
     /**
+     * DEPRECIATED
      * Launches new thread and updates following fields as described once delay has elapsed
      * 
      * DOES NOT CHECK IF THE FIELDS HAVE HAD ANOTHER VERSION OF THIS THREAD LAUNCHED

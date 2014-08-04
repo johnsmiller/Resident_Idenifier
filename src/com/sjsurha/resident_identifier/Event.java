@@ -2,15 +2,20 @@ package com.sjsurha.resident_identifier;
 
 import com.sjsurha.resident_identifier.Exceptions.CEDuplicateAttendeeException;
 import com.sjsurha.resident_identifier.Exceptions.CEMaximumAttendeesException;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.Serializable;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Locale;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import javax.swing.ButtonGroup;
+import javax.swing.JDialog;
+import javax.swing.JFormattedTextField;
 import javax.swing.JOptionPane;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
@@ -25,17 +30,17 @@ import javax.swing.JTextField;
  * @author John
  */
 
-//NOTE: THIS WILL BECOME A SUBCLASS OF MODEL AT DISTRIBUTION. CURRENTLY NOT SUBCLASS FOR EASE OF TESTING
 public final class Event implements Comparable<Event>, Serializable{
     private static final long serialVersionUID = 1L;
     
     private String name;
-    private GregorianCalendar date_time;
-    private HashMap<String, GregorianCalendar> attendees; //Think about sorting by time (gregCal) of checkin to eliminate waitingList
-    private TreeMap<GregorianCalendar, String> waitinglist;
+    private GregorianCalendar date_time; 
+    private HashMap<String, GregorianCalendar> attendees; //Think about sorting by time (gregCal) of checkin to eliminate waitingList. <-- Bad idea. Will most likely be O(n) every time
+    private HashMap<String, GregorianCalendar> waitinglist; //Change to hashmap. Better to have O(1) lookup & add with O(n) sort than O(n) add and O(1) sort
     private boolean autoWaitlist; //Set if user wishes all future adds default to waiting list without asking
     private int max_participants;
-    private TreeMap<String, Integer> tickets;
+    private HashMap<String, Integer> tickets;
+    //private HashMap<String, HashMap<String, Integer>> ticketCatagories; //<Catagory Name, <ID, # of Tickets>>
     
     /**
      *
@@ -47,9 +52,9 @@ public final class Event implements Comparable<Event>, Serializable{
         name = Name;
         date_time = DateTime;
         attendees = new HashMap<>(100);
-        waitinglist = new TreeMap<>();
+        waitinglist = new HashMap<>();
         max_participants = -1;
-        tickets = new TreeMap<>();
+        tickets = new HashMap<>();
     };
     
     /**
@@ -63,9 +68,9 @@ public final class Event implements Comparable<Event>, Serializable{
         name = Name;
         date_time = Date_Time;
         attendees = new HashMap<>(Max_Participants);
-        waitinglist = new TreeMap<>();
+        waitinglist = new HashMap<>();
         max_participants = Max_Participants;
-        tickets = new TreeMap<>();
+        tickets = new HashMap<>();
     };
     
     //Thread-enabled search function. Passed a Storage container of events, Storage.add(this) if resident attended event
@@ -109,15 +114,75 @@ public final class Event implements Comparable<Event>, Serializable{
         if(tick<0){
             if(tickets.containsKey(ID) && tickets.get(ID)>=tick)
                 tickets.put(ID, tickets.get(ID)+tick);
-            return;
         }
-        if(tickets.containsKey(ID))
+        else if(tickets.containsKey(ID))
             tickets.put(ID, tickets.get(ID)+tick);
         else
             tickets.put(ID, tick);
     }
     
-    public TreeMap<String,Integer> getTickets()
+    protected boolean ticketWindowPopup(String ID)
+    {
+        final JTextField ID_Textfield = new JTextField();
+        final JTextField Increase_Field = new JTextField();
+        Object selected;
+        
+        if(ID == null){
+            Increase_Field.setEditable(false);
+            ID_Textfield.addActionListener(verifyIDSwapEditable(ID_Textfield, Increase_Field));
+            selected = ID_Textfield;
+        }
+        else if(attendees.containsKey(ID) || waitinglist.containsKey(ID)){
+            ID_Textfield.setEditable(false);
+            ID_Textfield.setText(ID);
+            selected = Increase_Field;
+        } else {
+           JOptionPane.showMessageDialog(null, "Error: ID given did not attend this event.", "Add Tickets Error", JOptionPane.ERROR_MESSAGE); 
+           return false;
+        }
+        
+        Object[] message = {"Swipe ID: ", ID_Textfield, "Add tickets: ", Increase_Field};
+        Object[] options = {"OK", "Cancel"};
+
+        JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, selected);
+        JDialog diag = pane.createDialog("Add Tickets");
+        Increase_Field.addActionListener(ViewerController.disposeDialogActionListener(diag));
+        diag.setVisible(true);
+
+        if(Increase_Field.getText() == null || Increase_Field.getText().length() == 0 || pane.getValue() == null || pane.getValue().equals(options[1]))
+            return false;
+
+        try{
+            Integer Increase_Int = Integer.parseInt(Increase_Field.getText());
+            addTickets(ID_Textfield.getText(), Increase_Int);     
+            return true;
+        } catch (NumberFormatException | NullPointerException ex){
+            JOptionPane.showMessageDialog(null, "Error: improper input for Add Tickets. \nTickets not added.", "Add Tickets Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+    }
+    
+    private ActionListener verifyIDSwapEditable(final JTextField ID_Textfield, final JTextField otherTextField)
+    {
+        return (new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                String ID = ViewerController.extractID(ID_Textfield.getText());
+                if(ID == null || !(attendees.containsKey(ID) || waitinglist.containsKey(ID))){
+                    ID_Textfield.setText("");
+                    //Display message
+                    return;
+                }
+                ID_Textfield.setText(ViewerController.extractID(ID_Textfield.getText()));
+                ID_Textfield.setEditable(false);
+                otherTextField.setEditable(true);
+                otherTextField.grabFocus();
+            }
+        });
+    }
+    
+    public HashMap<String,Integer> getTickets()
     {
         return tickets;
     }
@@ -136,11 +201,11 @@ public final class Event implements Comparable<Event>, Serializable{
         if(checkIn)
             ret.addAll(attendees.keySet());
         if(waitlist)
-            ret.addAll(waitinglist.values());
+            ret.addAll(waitinglist.keySet());
         return ret;
     }
     /**
-     *
+     * 
      * @param ID Resident ID to check in
      * @param suppressCheckinPrompt if true, does not prompt to update check in
      *  time
@@ -152,47 +217,64 @@ public final class Event implements Comparable<Event>, Serializable{
      */
     public boolean validAttendee(String ID, boolean suppressCheckinPrompt) throws CEDuplicateAttendeeException, CEMaximumAttendeesException
     {
-        boolean wait = false; //To prevent searching an arraylist multiple times
-        if(isAttendee(ID) || (wait = isWaitlisted(ID))){
-            if(suppressCheckinPrompt)
-                throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
-           GregorianCalendar time = attendees.get(ID);
-           if(wait){
-               ArrayList<String> temp = new ArrayList<>(waitinglist.values());
-               int loc = temp.indexOf(ID);
-               time = (GregorianCalendar)waitinglist.keySet().toArray()[loc];
-           }
-           int[] arr = getTimeDifference(time, new GregorianCalendar());
-           
-           String message = "Resident already swiped in\n" 
-                   + arr[0] + " Days " + arr[1] + " Hours " 
-                   + arr[2] + " Minutes " + arr[3] + " Seconds ago\nRecheck in? "
+        GregorianCalendar checkinTime = null;
+        int[] timeDifference;
+        String message;
+        
+        if(isAttendee(ID)) //Is Attendee, O(1) lookup. Best-case scenario
+        {            
+            checkinTime = attendees.get(ID); //O(1) lookup
+        }
+        else if(isWaitlisted(ID)) //Is Waitlisted, O(1) lookup. Best-case scenario
+        {
+            checkinTime = waitinglist.get(ID); //O(1) lookup
+        }
+        else //Has not been checked in
+        {
+            if(!maxAttendee()) //Event is NOT full. Check in as attendee
+            {
+                attendees.put(ID, new GregorianCalendar());
+                return true;
+            }
+            else if(autoWaitlist) //Event IS full and automatic waitlist IS selected
+            {
+                waitinglist.put(ID,new GregorianCalendar());
+                return true;
+            }
+            else //Event IS full and automatic waitlist is NOT selected
+            {
+                if(maxAttendeeHandler())
+                    return validAttendee(ID, suppressCheckinPrompt);
+                else
+                    return false;
+            }
+        }
+        
+        if(suppressCheckinPrompt) 
+        {            
+            throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
+        }
+        
+        timeDifference = getTimeDifference(checkinTime, new GregorianCalendar());
+        
+        message = "Resident already swiped in\n" 
+                   + timeDifference[0] + " Days " + timeDifference[1] + " Hours " 
+                   + timeDifference[2] + " Minutes " + timeDifference[3] + " Seconds ago\nRecheck in? "
                    + "(Previous time is discarded. This does not affect number of tickets)";
-           
+        
            if(JOptionPane.showConfirmDialog(null, message, "Duplicate Resident", JOptionPane.OK_CANCEL_OPTION, JOptionPane.ERROR_MESSAGE) != JOptionPane.OK_OPTION)
                throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
-           if(!wait){
+           else if(isAttendee(ID)){
                attendees.put(ID, new GregorianCalendar());
                return true;
            }
            else{
-               waitinglist.remove(time);
-               waitinglist.put(new GregorianCalendar(), ID);
+               waitinglist.put(ID, new GregorianCalendar());
                return true;
            }
-        } else if(maxAttendee() && !autoWaitlist){
-            if(maxAttendeeHandler())
-                return validAttendee(ID, suppressCheckinPrompt);
-            else
-                return false;
-        }
-        else if(maxAttendee() && autoWaitlist)
-            return addWaitlist(ID);
-        else 
-            return addAttendee(ID);        
     }
     
-    private int[] getTimeDifference(GregorianCalendar start, GregorianCalendar stop)
+    protected static int[] getTimeDifference(GregorianCalendar start, GregorianCalendar stop)
     {
         if(start.compareTo(stop)>0){
             GregorianCalendar temp = start;
@@ -233,7 +315,7 @@ public final class Event implements Comparable<Event>, Serializable{
     
     public boolean isWaitlisted(String ID)
     {
-        return waitinglist.containsValue(ID);
+        return waitinglist.containsKey(ID);
     }
     
     public String Get_Details()
@@ -263,7 +345,7 @@ public final class Event implements Comparable<Event>, Serializable{
     
     private boolean addWaitlist(String ID)
     {     
-        waitinglist.put(new GregorianCalendar(), ID);
+        waitinglist.put(ID, new GregorianCalendar());
         return true;
     }
 
@@ -332,7 +414,7 @@ public final class Event implements Comparable<Event>, Serializable{
      *
      * @return
      */
-    public TreeMap<GregorianCalendar, String> getWaitinglist() {
+    public HashMap<String, GregorianCalendar> getWaitinglist() {
         return waitinglist;
     }
     
@@ -364,73 +446,154 @@ public final class Event implements Comparable<Event>, Serializable{
     }
     
     /**
-     * Returns a runnable thread that searches this event for the given ID
-     * If found, the thread adds this event to the given Tree<Set>
-     * NOTE: This implementation provides synchronized functionality. 
+     * Searches and returns true if ID is either an attendee or waitlisted for 
+     * this event
      * 
-     * @param id
-     * @param results
-     * @return 
+     * Search is O(1) (HashMap lookup)
+     * 
+     * @param id student ID to search for
+     * @param results 
      */
-    public Runnable search(final String id, final TreeSet<Event> results)
+    
+    public boolean search(String id)
     {
-        final Event th = this;
-        return new Runnable() {
-
-            @Override
-            public void run() {
-                if(attendees.containsKey(id) || waitinglist.containsValue(id)){ //Short-circuit array O(n) lookup if in attendees
-                    results.add(th); //DIFFERINTIATE BETWEEN WAITINGLIST AND ATTENDEE!!!!!
-                }
-            }
-        };
+        if(attendees.containsKey(id) || waitinglist.containsKey(id))
+        {
+            return true;
+        }
+        return false;
     }
     
-    /**
+    
+    /** 
      * Event's implementation to handle an event that has reached its maximum 
      * number of attendees.
      * 
      * Allows a user to 
      * a) increase (or disable) the max attendee limit 
      * b) start a waiting list for this event, 
-     * c) Do nothing. If a resident sign-in triggered this function, the resident will not be added
+     * c) Do nothing. If a resident sign-in triggered this function, 
+     * the resident will not be added
      * 
-     * @return true if waitlist or increased attendees, false if bad authenication or user decides not to increase/activate max/waitlist
+     * @return true if waitlist or increased attendees, false if bad 
+     * authenication or user decides not to increase/activate max/waitlist
      */
     private boolean maxAttendeeHandler() 
-    {
-        JTextField increaseBy = new JTextField();
-        JRadioButton increase = new JRadioButton("Increase the limit (current limit: " + getMaxParticipants() + "). Increase limit by: ");
-        Object[] op1 = {increase, increaseBy};
-        JRadioButton op2 = new JRadioButton("Start a waiting list. \nAll IDs swiped for this event after this point will go on a printable waiting list");
-        JRadioButton op3 = new JRadioButton("Don't add anymore attendees, including this one.");
-        String message = "This event has reached its maxiumum number of attendees. This value was set when the event was created, \nYou can: ";
-        Object[] options = {message, op1, op2, op3};
-        int temp = JOptionPane.showOptionDialog(null, options, "Max Attendees Reached", JOptionPane.OK_OPTION, JOptionPane.INFORMATION_MESSAGE, null, null, null);
-        boolean select = (temp != JOptionPane.NO_OPTION && temp != JOptionPane.CLOSED_OPTION);
-        if(select && increase.isSelected()){
+    {       
+        JFormattedTextField increaseByField = new JFormattedTextField(NumberFormat.getIntegerInstance());
+        
+        String message = "This event has reached its maxiumum number of "
+                + "attendees. This value was set when the event was created, "
+                + "\nYou can: ";
+        
+        JRadioButton op1 = new JRadioButton("Increase the limit "
+                + "(current limit: " + getMaxParticipants() + "). "
+                + "A value of 0 will remove the limit. Increase limit by:");
+        
+        JRadioButton op2 = new JRadioButton("Start a waiting list. "
+                + "\nAll IDs swiped for this event after this point will go "
+                + "on a printable waiting list");
+        
+        JRadioButton op3 = new JRadioButton("Don't add anymore attendees, "
+                + "including this one.");
+        
+        ButtonGroup group = new ButtonGroup();
+        group.add(op1);
+        group.add(op2);
+        group.add(op3);
+
+        
+        Object[] options = {message, op1, increaseByField, op2, op3};
+        
+        int temp = JOptionPane.showOptionDialog(null, options, "Max Attendees Reached", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null, null, null);
+        boolean select = (temp != JOptionPane.CANCEL_OPTION && temp != JOptionPane.CLOSED_OPTION);
+        
+        if(select && op1.isSelected()){
             try{
-                int inc;
-                if((inc = Integer.parseInt(increaseBy.getText())) < 0) {
+                increaseByField.commitEdit();
+                Integer inc = (Integer) increaseByField.getValue();
+                
+                if(inc == null || inc < 0) {
                     JOptionPane.showMessageDialog(null, "Error: Invalid increase amount entered.", "Increase Error", JOptionPane.ERROR_MESSAGE);
                     return false;
                 }
                 synchronized(this) {
-                    setMaxParticipants(getMaxParticipants()+inc);
+                    if(inc == 0)
+                        setMaxParticipants(-1);
+                    else
+                        setMaxParticipants(getMaxParticipants()+inc);
                 }
                 return true;
             }
-            catch(NumberFormatException | NullPointerException ex){
+            catch(ParseException | NullPointerException ex){
                 JOptionPane.showMessageDialog(null, "Error: Invalid increase amount entered.", "Increase Error", JOptionPane.ERROR_MESSAGE);
                 return false;
             }        
         }
-        if(select && op2.isSelected()){
+        
+        else if(select && op2.isSelected()){
             synchronized(this) {
                 setAutoWaitlist(true);
             }
             return true;
         }
+        
         return false;
     }
 }
+
+/**
+     * Remnant of TreeMap WaitingList. Couldn't bring myself to delete it
+     * 
+     * Does O(1) lookup in attendees. If resident found, event is added to 
+     * results TreeSet and function returns.
+     * <br></br>
+     * <br></br>
+     * Else, if the resident is not in the attendees and the waiting list is 
+     * populated, a new thread is launched that searches the waiting list in 
+     * O(n) time and this function returns to allow the calling function to 
+     * continue
+     * 
+     * <p>NOTE: This implementation DOES NOT provide synchronized functionality.
+     * It's assumed that the TreeSet paramter <b>results</b> provides synchronized 
+     * add function</p>
+     * 
+     * @param id Student ID to search events for
+     * @param results the modified treeset with synchronized add function
+     * @param sem Semaphore used to signal thread has completed
+     */ /*
+    public void search(final String id, final TreeSet<Event> results, final Semaphore sem)
+    {
+        //Short-circuit array O(n) lookup & thread creation if in attendees
+        if(attendees.containsKey(id))
+        {
+            results.add(this);
+            //SIGNAL THREAD HAS FINISHED 
+            sem.release();
+            return;
+        }
+        //Launch Thread for array O(n) lookup, allow calling function to continue
+        else if (waitinglist.size() > 0) {
+            final Event th = this;
+            Thread t1 = new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        if(waitinglist.containsValue(id)){
+                            results.add(th);
+                        //DIFFERINTIATE BETWEEN WAITINGLIST AND ATTENDEE??
+                        }
+                        //SIGNAL THREAD HAS FINISHED 
+                        sem.release();
+                    }
+                }
+            );
+            t1.start();
+            return;
+        }
+        
+        else {
+            sem.release();
+            return;
+        }
+    } */

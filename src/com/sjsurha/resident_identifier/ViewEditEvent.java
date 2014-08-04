@@ -25,6 +25,19 @@ import javax.swing.JTextField;
  *
  * @author John
  */
+
+/*
+Consider when increasing maximum attendees
+IMPLEMENT WITH POPUP WINDOW WHEN event.setMaximumAttendees
+    People already waitlisted
+        -- Do they get moved by check-in time to the new slots? Are they left on waiting list?
+    Auto-waitlist option
+        -- Reset or leave alone? Different options if there are people still on the waitinglist?
+
+Remove Residents by listing them
+    Implementations for both Attendees and Waitinglist
+    Option to select/deselect all
+*/
 public final class ViewEditEvent extends JPanel
 {
     private final Model model;
@@ -139,7 +152,11 @@ public final class ViewEditEvent extends JPanel
             }
         };
     }
-
+    
+    /**
+     * MODIFY TO CHECK FOR DUPLICATE EVENT BEFORE ADMIN AUTHENTICATION
+     * @return 
+     */
     private ActionListener Submit_ActionListener()
     {
         return new ActionListener() {
@@ -148,9 +165,15 @@ public final class ViewEditEvent extends JPanel
             public void actionPerformed(ActionEvent e) {
                     Event event = (Event)eventCombobox.getSelectedItem();
                     GregorianCalendar tempDate = new GregorianCalendar();
-                    tempDate.setTime(dateChooser.getDate());
+                    tempDate.setTime(dateChooser.getDate()); //IF NULL??????
                     tempDate.set(Calendar.HOUR_OF_DAY, hour.getSelectedIndex());
                     tempDate.set(Calendar.MINUTE, minute.getSelectedIndex()*5);
+                    
+                    if(event == null)
+                    {
+                        JOptionPane.showMessageDialog(null, "No Event Selected. Please try again", "Event Edit Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
                     
                     String message = 
                             event.getName() + " on " + event.getShortDate() + " " 
@@ -165,12 +188,12 @@ public final class ViewEditEvent extends JPanel
                             + tempDate.get(Calendar.MINUTE) + " "
                             + tempDate.getDisplayName(Calendar.AM_PM, Calendar.LONG, Locale.US) + ". Continue?";
                     
-                    if(!model.Admin_Authentication_Popup()) {
-                        JOptionPane.showMessageDialog(null, "Admin Authentication Failed", "Remove Error", JOptionPane.ERROR_MESSAGE);
-                    } else if(!model.ContainsEvent(event)){
+                    if(!model.ContainsEvent(event)){
                         JOptionPane.showMessageDialog(null, "Error: Event not found", "Event edit error", JOptionPane.ERROR_MESSAGE);
                     }else if(JOptionPane.showConfirmDialog(null, message)!=JOptionPane.YES_OPTION){
-                    
+                        return;
+                    } else if(!model.authenticationPopup(LogEntry.Level.User, "Event updated: " + event.Get_Details())) {
+                        JOptionPane.showMessageDialog(null, "Authentication Failed", "Event edit Error", JOptionPane.ERROR_MESSAGE);
                     } else{
                         int newMaxParticipants = event.getMaxParticipants();
                         try{
@@ -200,13 +223,18 @@ public final class ViewEditEvent extends JPanel
             @Override
             public void actionPerformed(ActionEvent e) {
                 Event event = (Event)eventCombobox.getSelectedItem();
+                if(event == null)
+                {
+                    JOptionPane.showMessageDialog(null, "No Event Selected", "Remove Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
                 String ID = ViewerController.extractID((String)JOptionPane.showInputDialog(null,"Enter ID to be Removed", "Remove resident from event", JOptionPane.QUESTION_MESSAGE));
-                if(ID == null) {
+                if(ID == null || !(event.isAttendee(ID) || event.isWaitlisted(ID))) {
                     JOptionPane.showMessageDialog(null, "Invalid ID", "Remove Error", JOptionPane.ERROR_MESSAGE);
-                } else if(!model.Admin_Authentication_Popup()){
+                } else if(!model.authenticationPopup(LogEntry.Level.Administrator, "Remove Attendee: " + ID)){
                     JOptionPane.showMessageDialog(null, "Admin Authentication Failed", "Remove Error", JOptionPane.ERROR_MESSAGE);
                 } else if(!event.removeAttendee(ID)) {
-                    JOptionPane.showMessageDialog(null, "Resident not removed\nMost likely, this event does not contain this resident", "Remove Error", JOptionPane.ERROR_MESSAGE);
+                    JOptionPane.showMessageDialog(null, "Resident not removed", "Remove Error", JOptionPane.ERROR_MESSAGE);
                 } else {
                     JOptionPane.showMessageDialog(null, "Resident succesfully removed");
                 }
@@ -221,13 +249,12 @@ public final class ViewEditEvent extends JPanel
             @Override
             public void actionPerformed(ActionEvent e) {
                 Event event = (Event)eventCombobox.getSelectedItem();
-                if(model.Admin_Authentication_Popup()){
-                    if(model.ContainsEvent(event)){
-                        if(JOptionPane.showConfirmDialog(null, event.getName() + " on " + event.getShortDate() + " " + event.getTime() + " will be deleted. Continue?")==JOptionPane.YES_OPTION){
-                            model.removeEvent(event);
-                            eventCombobox.repaint();
-                        }   
+                if(model.ContainsEvent(event) && model.authenticationPopup(LogEntry.Level.Administrator, "Delete Event: " + event.toString())){
+                    if(JOptionPane.showConfirmDialog(null, event.getName() + " on " + event.getShortDate() + " " + event.getTime() + " will be deleted. Continue?")==JOptionPane.YES_OPTION){
+                        model.removeEvent(event);
+                        eventCombobox.repaint();
                     }
+                    //ELSE MESSAGE PLEASE!!!!!!!!!!!!!!!!
                 }                   
             }
         };

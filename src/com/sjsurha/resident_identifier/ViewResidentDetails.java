@@ -49,9 +49,13 @@ public final class ViewResidentDetails extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                String ID = (String)JOptionPane.showInputDialog(null,"Please swipe your ID card:", "Swipe ID to Check",JOptionPane.QUESTION_MESSAGE);
+                String ID = (String)JOptionPane.showInputDialog(null,"Please swipe Resident ID card:", "Swipe ID to Check",JOptionPane.QUESTION_MESSAGE);
                 if((ID=ViewerController.extractID(ID))==null){
                     textArea.setText("Invalid Card");
+                    return;
+                }
+                if(!model.authenticationPopup(LogEntry.Level.Administrator, "Check Resident Activity: " + ID))
+                {
                     return;
                 }
                 if(model.checkResident(ID)){

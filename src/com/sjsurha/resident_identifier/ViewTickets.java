@@ -4,21 +4,10 @@
  */
 package com.sjsurha.resident_identifier;
 
-import com.itextpdf.awt.PdfGraphics2D;
-import com.itextpdf.text.Document;
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.PageSize;
-import com.itextpdf.text.pdf.PdfContentByte;
-import com.itextpdf.text.pdf.PdfWriter;
 import java.awt.Dimension;
-import java.awt.Shape;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
 import java.util.Iterator;
 import java.util.Random;
 import javax.swing.BoxLayout;
@@ -108,7 +97,7 @@ public final class ViewTickets extends JPanel
             JTable ret = model.getEventsJTable();
             ret.setAutoCreateRowSorter(true);
             ret.setPreferredScrollableViewportSize(new Dimension(500, 200));
-            ColumnsAutoSizer.sizeColumnsToFit(ret);
+            ret.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
             ret.setFillsViewportHeight(true);
             return ret;
         }
@@ -125,7 +114,7 @@ public final class ViewTickets extends JPanel
                         if((boolean)eventList.getValueAt(i, 0))
                             selectedTickets.addAll(((Event)eventList.getModel().getValueAt(i, 5)).getTickets(includeCheckins.isSelected(), includeWaitlist.isSelected()));
                     }                     
-                    if(selectedTickets.size()>0 && model.Admin_Authentication_Popup()){
+                    if(selectedTickets.size()>0 && model.authenticationPopup(LogEntry.Level.User, "Entered Opportunity Drawing Mode")){
                         Random rand = new Random();
                         randomizeArr(selectedTickets, rand);
                         rebuildResidentPane(rand, selectedTickets);
@@ -202,10 +191,9 @@ public final class ViewTickets extends JPanel
 
             winnerHistory.setRowHeight(40);
             winnerHistory.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
-            //RESIZE COLUMNS WHEN CELL IS EDITED??? -- Done
-            //CUSTOMIZE SIGNATURE FIELD SIZE?? -- BLOCKED BY COLUMNS AUTOSIZER. FIX???
-            //PRINT TABLE ALIGNED LEFT ON PAPER -- 
-            //MAKE NAME & ROOM CELLS UNEDITABLE??? -- Done
+            
+            saveWinnerHistory.setEnabled(false); //Create way to export to pdf, csv
+            //Signature capture?
 
             this.add(new JScrollPane(winnerHistory));
             this.add(buttons);
@@ -240,6 +228,7 @@ public final class ViewTickets extends JPanel
                 //Resort for check-in only amounts
             //Select & remove random resident (for prizes)
             //Select & keep random resident (for??)
+        //Move to model to get rid of unsecured 'model.getNameBedspace' function
         private ActionListener drawRandomActionListener()
         {
             return new ActionListener() {
@@ -280,18 +269,20 @@ public final class ViewTickets extends JPanel
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    String text = "";
-                    Iterator<String> itr = winners.iterator();
-                    while(itr.hasNext())
-                    {
-                        String id = itr.next();
-                        String[] temp = model.getNameBedspace(id);
-                        text += id + " " + temp[1] + " " + temp[0] + " " + temp[2] + "\n";
+                    if(model.authenticationPopup(LogEntry.Level.Administrator, "View Opportunity Drawing Winners' Full Details")){
+                        String text = "";
+                        Iterator<String> itr = winners.iterator();
+                        while(itr.hasNext())
+                        {
+                            String id = itr.next();
+                            String[] temp = model.getNameBedspace(id);
+                            text += id + " " + temp[1] + " " + temp[0] + " " + temp[2] + "\n";
+                        }
+                        JTextPane message = new JTextPane();
+                        message.setText(text);
+                        message.setEditable(false);
+                        JOptionPane.showMessageDialog(null, message, "Winners", JOptionPane.INFORMATION_MESSAGE);
                     }
-                    JTextPane message = new JTextPane();
-                    message.setText(text);
-                    message.setEditable(false);
-                    JOptionPane.showMessageDialog(null, message, "Winners", JOptionPane.INFORMATION_MESSAGE);
                 }
 
             };
@@ -337,42 +328,12 @@ public final class ViewTickets extends JPanel
              */
             public void save()
             {
-                Document document = new Document(PageSize.LETTER.rotate());
-                try {
-                    
-                    GregorianCalendar date = new GregorianCalendar();
-                    String dateStr = "Winners_Table_" + (date.get(Calendar.MONTH)+1) + "-" + date.get(Calendar.DATE) + "-" + date.get(Calendar.YEAR) + "_" + date.get(Calendar.HOUR) + "." + date.get(Calendar.MINUTE) + "." + date.get(Calendar.SECOND) + ".pdf";
-                    
-                    PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(dateStr));
-                    
-                    document.open();
-                    PdfContentByte cb = writer.getDirectContent();
-                    
-                    cb.saveState();
-                    PdfGraphics2D g2 = new PdfGraphics2D(cb, 500, 500);
-                    
-                    Shape oldClip = g2.getClip();
-                    g2.clipRect(0, 0, 500, 500);
-                    
-                    this.print(g2);
-                    g2.setClip(oldClip);
-                    
-                    g2.dispose();
-                    cb.restoreState();
-                    writer.close();
-                } catch (FileNotFoundException | DocumentException e) {
-                    System.err.println(e.getMessage());
-                    
-                } finally {
-                    document.close();
-
-                }
+                
             }
 
                 @Override
                 public void repaint()
                 {
-                    ColumnsAutoSizer.sizeColumnsToFit(this);
                     super.repaint();
                 }
 
