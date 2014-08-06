@@ -1,37 +1,38 @@
 package com.sjsurha.resident_identifier;
 
-//Syncronized: events
-//To Syncronize: admin (authenication while adding)?
-//Additions: Server/Client across-internet functionality? (possible?)
-//           Halls Program: Remove non-pertanant info
-//                          Checkin by hall
-//                          printout statistics by hall
-
-//Password encrypting requires java 6 or later
 import com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedException;
 import com.sjsurha.resident_identifier.Exceptions.CEDuplicateAttendeeException;
 import com.sjsurha.resident_identifier.Exceptions.CEMaximumAttendeesException;
 import com.sjsurha.resident_identifier.Exceptions.CENonResidentException;
-import java.awt.Dimension;
 import java.awt.HeadlessException;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.Serializable;
+import java.text.NumberFormat;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
+import javax.swing.ButtonGroup;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
+import javax.swing.JFormattedTextField;
 import javax.swing.JOptionPane;
 import javax.swing.JPasswordField;
+import javax.swing.JRadioButton;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -43,27 +44,19 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  * @version .7 - Development
  */
 
-//Set-up function to store Model's individual private members in case model class changed after program is implemented.
-//Handle an event that check in a student multiple times?? (future dev?) --Done
-//Handle checking attendance across several events?? (future dev?) (Neccessary?)
 //Handle checking in non-residents?
-//Pull residence halls' names from bedspace
+//Pull residence halls' names from bedspace --done
 public final class Model implements Serializable{
-    private static final long serialVersionUID = 2L;
-    
+    private static final long serialVersionUID = 2;
     
     //Stored Data Members
-    private final EventTreeSet_TableModel_ComboBoxModel events;
-    private final TreeSet<LogEntry> log;
+    private final TreeSet_TableModel_ComboBoxModel<Building> buildings; //Will hold the names of all builings. Considerations: Excel Import, Manual Creation, Database merge. Clear on residents clear.
+    private final TreeSet_TableModel_ComboBoxModel<Event> events;
     private final HashMap<String, Resident> residents;
-    private final HashSet<String> buildings; //Will hold the names of all builings
-        //Considerations: Excel Import, Manual Creation, Database merge. Clear on residents clear.
-    private final HashMap<String, String> admins;//Change to hashmap, values are encrypted versions of admin pins
-    private final HashMap<String, String> users; //change to hashmap, values are encrypted versions of user pins
-    private File previous_excel_path;
-    //Stored, public program variables
-        //Global Variables for ViewPanes
-    protected final Dimension JTablePopUpSize = new Dimension(600, 400);
+    private final HashMap<String, String> admins;
+    private final HashMap<String, String> users;
+    private final TreeSet<LogEntry> log;
+
     
     
     //Security function variables (static members reset upon model restore)
@@ -76,36 +69,39 @@ public final class Model implements Serializable{
     private final int MAX_CONSECUTIVE_FAILED_ATTEMPTS = 5; //Number of failed Admin or User Authenication attempts before program resets
     private Integer consecutive_failed_attempts;
     
-    //Excel import variables
+    //CSV import variables
+    private File previous_import_path; //DOESN'T IMPLEMENT SERIALIZABLE
     private int ID_COLUMN_NUMBER = 0; //Location of SJSU User ID column in excel sheet rows
     private int FIRST_NAME_COLUMN_NUMBER = 4; //Location of SJSU First Name column in excel sheet rows
     private int LAST_NAME_COLUMN_NUMBER = 2; //Location of SJSU Last Name column in excel sheet rows
     private int BEDSPACE_COLUMN_NUMBER = 17; //Location of SJSU Bedspace column in excel sheet rows
     private String BUILDING_ID_DELIMITER = "-";
+    private boolean leadingZeroFix = true;
     private final int ID_CELL_LENGTH = 9; //Length of SJSU User ID to locate valid student ID entries
     private final int SAMPLE_COLUMNS = 30; //Number of columns to pull for user sample
     private final int SAMPLE_ROWS = 30; //Number of rows to pull for user sample
     private final int SKIP_ROW_COUNT = 14; //Number of cells to skip before pulling data for user sample
     private final HashSet<String> INVALID_ID_STRINGS; //Strings that indicate the current row is not a resident
-      
+    
+    private final String[] eventHeaders = {"Select", "Event Date", "Event Name", "Attendees", "Waitlisted"};
+    private final String[] buildingHeaders = {"Allowed?", "Building"};
     /**
      * 
      * @throws CEAuthenticationFailedException 
      */
     protected Model() throws CEAuthenticationFailedException
     {
-        events = new EventTreeSet_TableModel_ComboBoxModel();
+        events = new TreeSet_TableModel_ComboBoxModel<>(eventHeaders);
+        buildings = new TreeSet_TableModel_ComboBoxModel<>(buildingHeaders);
+        residents = new HashMap<>();
+        admins = new HashMap<>();
+        users = new HashMap<>();
         log = new TreeSet<>();
-        previous_excel_path = null;
-        residents = new HashMap<String, Resident>();
-        buildings = new HashSet<>();
+        previous_import_path = null;
         user_requests = 0;
         last_user_request = System.nanoTime();
         last_admin_request = (long)-1;
-        admins = new HashMap<>();
-        users = new HashMap<>();
         consecutive_failed_attempts = 0;
-        
         INVALID_ID_STRINGS = new HashSet<>(Arrays.asList("CLOSED", "LAST NAME", "SJSU ID"));
         
         if(!powerUserCreationPopup(LogEntry.Level.Administrator)) //Adds an admin to ensure administrative functions are operational at run-time
@@ -138,15 +134,12 @@ public final class Model implements Serializable{
      * @param importAdmins if true, import non-existing admins into this model
      * @param importEvents if true, import non-existing events into this model
      * @param importResidents if true, import all (replace existing) residents
-     * @return true if Admin/Residents changed as a result. True by default for 
-     * events
      */
     
-    protected synchronized boolean mergeDatabase(Model modelIn, boolean importAdmins, boolean importEvents, boolean importResidents)
+    protected synchronized void mergeDatabase(Model modelIn, boolean importAdmins, boolean importUsers, boolean importEvents, boolean importResidents)
     {
         if(modelIn == null)
-            return false;
-        boolean ret = true;
+            return;
         
         if(importAdmins)
         {
@@ -158,40 +151,26 @@ public final class Model implements Serializable{
         
         if(importEvents)
         {
-            ret = ret && events.addAll(modelIn.events);
+            events.addAll(modelIn.events);
         }
         
         if(importResidents)
         {
             residents.putAll(modelIn.residents);
+            buildings.addAll(modelIn.buildings);
+        }
+        
+        for(LogEntry l : modelIn.log)
+        {
+            l.archived();
+            log.add(l);
         }
         
         ViewerController.saveModel();
-        
-        return ret;
+
     }
 
     //RESIDENCE DATABASE FUNCTION(S)
-    
-    /**
-     * Checks if ID is in residents (student is a resident) and if resident has not yet attended this event.
-     *
-     * @param id Student ID to check for residency & event participation
-     * @param event Event to check ID against
-     * @param disableRecheckinPrompt if true, suppresses prompt to ask if user 
-     *  wants to update check-in time for attendees
-     * @return Returns True if Resident & has not yet attended event
-     * @throws CEDuplicateAttendeeException Thrown if Resident has already attended event
-     * @throws CENonResidentException Thrown if Student ID does not exist in Resident hashmap
-     * @throws CEMaximumAttendeesException Thrown if Event has reached the maximum number of Residents that can attend an event
-     */
-    protected synchronized boolean addAttendee(String id, Event event, boolean disableRecheckinPrompt) throws CEDuplicateAttendeeException, CENonResidentException, CEMaximumAttendeesException
-    {
-        //RequestCheck();
-        if(id == null || !residents.containsKey(id))
-            throw new CENonResidentException("Student ID not in Resident Database");//Change to JDialog?
-        return event.validAttendee(id, disableRecheckinPrompt);     
-    }
     
      /**
      * 
@@ -204,6 +183,30 @@ public final class Model implements Serializable{
         if(residents.containsKey(id))
             return true;
         return false;
+    }
+    
+    /**
+     * Looks up the Student ID in stored residents & extracts the building ID
+     * using the predefined string delimiter.
+     * 
+     * Building ID is added to list of building IDs if it does not exist already
+     * 
+     * Returns null if student doesn't exist.
+     * 
+     * @param ID the student ID to get the Building ID from
+     * @return the Building ID or null
+     */
+    protected Building extractBuilding(String ID)
+    {
+        Resident res = residents.get(ID);
+        if(res == null)
+            return null;
+        
+        int delmiterIndex = (res.getBedspace().contains(BUILDING_ID_DELIMITER))? res.getBedspace().indexOf(BUILDING_ID_DELIMITER) : res.getBedspace().length();
+        String building = res.getBedspace().toUpperCase().substring(0, delmiterIndex);
+        Building b = new Building(building);
+        buildings.add(b);
+        return b;
     }
         
     /**
@@ -246,7 +249,7 @@ public final class Model implements Serializable{
      * @return true if the set changed as a result of this call
      */
     
-    private synchronized boolean addEvent(Event event)
+    protected synchronized boolean addEvent(Event event)
     {
         return events.add(event);
     }
@@ -272,102 +275,20 @@ public final class Model implements Serializable{
      * @param dateTime the new date/time of the object (can be original date)
      * @param maxAttendees the new maxAttendees (can be original maxAttendees, 
      * cannot be less than the current number of attendees
+     * @param allowedBuildings
      * @return true if the adding of the modified event was successful, false 
      * if not successful
      */
-    protected synchronized boolean updateEvent(Event event, String name, GregorianCalendar dateTime, int maxAttendees)
+    protected synchronized boolean updateEvent(Event event, String name, GregorianCalendar dateTime, int maxAttendees, Building[] allowedBuildings)
     {
         removeEvent(event);
         event.setName(name);
         event.setDateTime(dateTime);
         event.setMaxParticipants(maxAttendees);
+        event.updateBuildings(allowedBuildings);
         return addEvent(event);
     }
     
-    /**
-     * Creates and returns an event with no max attendee limit 
-     * if an event with that name and date/time did not already exist and was 
-     * successfully added to the set
-     * 
-     * Returns null if the set did not change as a result of this call
-     * 
-     * @param Name Name of the event
-     * @param DateTime Date/Time container for event
-     * @return the created event if it was added successfully, null if not added
-     */
-    protected synchronized Event createEvent(String Name, GregorianCalendar DateTime)
-    {
-        Event event = new Event(Name, DateTime);
-        if(addEvent(event))
-            return event;
-        return null;
-    }
-    
-    /**
-     * Creates and returns an event if an event with that name and date/time
-     * did not already exist and was successfully added to the set
-     * 
-     * Returns null if the set did not change as a result of this call
-     * 
-     * @param Name name of the event
-     * @param DateTime Date/Time container of the event
-     * @param MaxAttendees maximum  number of attendees that can attend this
-     * event
-     * @return the created event if successful, null if unsuccessful
-     */
-    protected synchronized Event createEvent(String Name, GregorianCalendar DateTime, int MaxAttendees)
-    {
-        Event event = new Event(Name, DateTime, MaxAttendees);
-        if(addEvent(event))
-            return event;
-        return null;
-            
-    }
-    
-    /**
-     * Constructs a GregorianCalendar and sends it to a synchronized overloaded 
-     * version of this function.
-     * 
-     * Creates and returns an Event with no maxAttendee limit if the set does
-     * not already contain an Event with the same Name and date/time. 
-     * 
-     * Returns null if set did not change as a result of this call
-     * 
-     * @param Name Name of event
-     * @param year Year in which event takes place
-     * @param month Month in which event takes place
-     * @param day day that event takes place
-     * @param hour hour that event takes place
-     * @param minute minute that event takes place
-     * @return the created event if successfully added, null if not
-     */
-    protected Event createEvent(String Name, int year, int month, int day, int hour, int minute)
-    {
-        return createEvent(Name, new GregorianCalendar(year, month, day, hour, minute));
-    }
-    
-    /**
-     * Constructs a GregorianCalendar object and sends it to a synchronized
-     * overloaded version of this function
-     * 
-     * Creates and returns an Event with MaxAttendees limit if the set does
-     * not already contain an Event with the same Name and date/time. 
-     * 
-     * Returns null if set did not change as a result of this call
-     * 
-     * @param Name Name of event
-     * @param year Year in which event takes place
-     * @param month Month in which event takes place
-     * @param day day that event takes place
-     * @param hour hour that event takes place
-     * @param minute minute that event takes place
-     * @param MaxAttendees limit on number of check-ins
-     * @return the created event if successfully added, null if not
-     */
-    protected Event createEvent(String Name, int year, int month, int day, int hour, int minute, int MaxAttendees)
-    {
-        return createEvent(Name, new GregorianCalendar(year, month, day, hour, minute), MaxAttendees);
-    }
     
     /**
      * Returns a JComboBox that uses the Events collection as a 
@@ -401,6 +322,17 @@ public final class Model implements Serializable{
         return ret;
     }
     
+    protected JTable getBuildingJTable()
+    {            
+        JTable ret = new JTable();
+        ret.setModel(buildings);
+        ret.setAutoCreateRowSorter(true);
+        ret.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        ret.setFillsViewportHeight(true);
+        ret.getRowSorter().toggleSortOrder(1);
+        return ret;
+    }
+    
     /**
      * Standardized way of returning the size of the events collection across
      * different model implementations 
@@ -412,45 +344,19 @@ public final class Model implements Serializable{
         return events.size();
     }
     
+    protected int buildingCount()
+    {
+        return buildings.getSize();
+    }
+    
     /**
      * Ensures clean program exit by discarding all listener threads
-     * in the event collection
+     * that use the TableModel_ComboBox collection
      */
-    protected void removeAllEventListeners()
+    protected void removeAllListeners()
     {
         events.removeAllListeners();
-    }
-        
-    /**
-     * This functionality will soon be moved to the Event class
-     * USES MODEL'S RESIDENTS TO GET RESIDENT INFO
-     * Formats an event's attendees list into an Object 2-dimensional
-     * array for use in a JTable.
-     * 
-     * Assumed Columns: Check-in Time, Student ID, Last Name, 
-     * First Name, Bedspace, Tickets
-     * 
-     * @param checkInData the event whose attendees list is to be formatted
-     * @return a two-dimensional array formatted for display in a JTable
-     */
-    protected Object[][] getEventJTable(HashMap<String, GregorianCalendar> checkInData, HashMap<String, Integer> tickets)
-    {
-        //String[] columnNames = {"Check-in", "ID", "Last Name", "First Name", "Bedspace", "Tickets"};
-        Object[][] ret = new Object[checkInData.size()][6];
-        int i = 0;
-        for(String id : checkInData.keySet())
-        {
-            ret[i][0] = checkInData.get(id).getTime().toString();
-            ret[i][1] = id;
-            ret[i][2] = residents.get(id).getLast_name();
-            ret[i][3] = residents.get(id).getFirst_name();
-            ret[i][4] = residents.get(id).getBedspace();
-            ret[i][5] = ((tickets.containsKey(id))? tickets.get(id) : 0);
-            if((int)ret[i][5]<10 && (int)ret[i][5]>0)
-                ret[i][5] = "0" + ret[i][5];
-            i++;
-        }
-        return ret;
+        buildings.removeAllListeners();
     }
     
     /**
@@ -790,8 +696,7 @@ public final class Model implements Serializable{
         }
         return false;
     }
-    
-    
+       
     
     protected String[] getNameBedspace(String ID)
     {
@@ -820,11 +725,6 @@ public final class Model implements Serializable{
         }
     }
     
-    /*protected HashSet getBuildings()
-    {
-        
-    }*/
-    
     protected void csvImport()
     {
         Scanner scanner = null;
@@ -838,8 +738,8 @@ public final class Model implements Serializable{
             Object[][] tableData = new Object[SAMPLE_ROWS][]; //populated with non-empty rows/columns of sample sets
             Object[] tableHeaders; //Column headers (numbers 1 to # of columns)
            
-            if(previous_excel_path != null && previous_excel_path.exists()) //set default fileChooser location to previous location if valid
-                fileChooserGUI.setCurrentDirectory(previous_excel_path);
+            if(previous_import_path != null && previous_import_path.exists()) //set default fileChooser location to previous location if valid
+                fileChooserGUI.setCurrentDirectory(previous_import_path);
             
             if(fileChooserGUI.showOpenDialog(null) != JFileChooser.APPROVE_OPTION //Check for invalid file
                     || fileChooserGUI.getSelectedFile() == null 
@@ -847,7 +747,7 @@ public final class Model implements Serializable{
             { return; }
             
 
-            previous_excel_path = fileChooserGUI.getSelectedFile(); //update previous selection location
+            previous_import_path = fileChooserGUI.getSelectedFile(); //update previous selection location
             
             //Get scanner instance
             scanner = new Scanner(fileChooserGUI.getSelectedFile());
@@ -880,7 +780,7 @@ public final class Model implements Serializable{
                 }
             };
             
-            selectorTable.setPreferredScrollableViewportSize(JTablePopUpSize); //MAGIC NUMBERS
+            selectorTable.setPreferredScrollableViewportSize(ViewerController.JTablePopUpSize); //MAGIC NUMBERS
             selectorTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
             selectorTable.setFillsViewportHeight(true);
             
@@ -917,25 +817,24 @@ public final class Model implements Serializable{
             scanner = new Scanner(fileChooserGUI.getSelectedFile());
 
             String[] splitLineStrings;
-            String bedspaceString;
+            String ID;
             
             while(scanner.hasNextLine())
             {
                 splitLineStrings = scanner.nextLine().split(",");
                 
                 if(splitLineStrings.length >= numOfColumns && !INVALID_ID_STRINGS.contains(splitLineStrings[ID_COLUMN_NUMBER])) {
-                    //Leading '0' fix for SJSU
-                    while(splitLineStrings[ID_COLUMN_NUMBER].length()<ID_CELL_LENGTH)
+                    //Leading '0' fix for SJSU. To be converted to an option under new program settings window
+                    while(leadingZeroFix && splitLineStrings[ID_COLUMN_NUMBER].length()<ID_CELL_LENGTH)
                         splitLineStrings[ID_COLUMN_NUMBER] = "0" + splitLineStrings[ID_COLUMN_NUMBER];
-                    //Store Bedspace string for readability
-                    bedspaceString = splitLineStrings[BEDSPACE_COLUMN_NUMBER];
+                    //Store ID string for readability
+                    ID = splitLineStrings[ID_COLUMN_NUMBER];
                     //Create new resident 
-                    Resident resident = new Resident(splitLineStrings[ID_COLUMN_NUMBER], splitLineStrings[FIRST_NAME_COLUMN_NUMBER], splitLineStrings[LAST_NAME_COLUMN_NUMBER], bedspaceString);
+                    Resident resident = new Resident(ID, splitLineStrings[FIRST_NAME_COLUMN_NUMBER], splitLineStrings[LAST_NAME_COLUMN_NUMBER], splitLineStrings[BEDSPACE_COLUMN_NUMBER]);
                     //Save new resident
-                    synchronized(residents) {   residents.put(splitLineStrings[ID_COLUMN_NUMBER], resident);  }
+                    synchronized(residents) {   residents.put(ID, resident);  }
                     //Update Buildings hashmap. Duplicates are automatically discarded.
-                    int delmiterIndex = (bedspaceString.contains(BUILDING_ID_DELIMITER))? bedspaceString.indexOf(BUILDING_ID_DELIMITER) : bedspaceString.length();
-                    buildings.add(bedspaceString.toUpperCase().substring(0, delmiterIndex));
+                    extractBuilding(ID);
                 }
             }
             
@@ -971,181 +870,675 @@ public final class Model implements Serializable{
         
         return logData;
     }
-}
+    
+    public final class Event implements Comparable<Event>, Serializable, TreeSet_TableModel_ComboBoxModel.TableModel_ComboModel_Interface{
+        private static final long serialVersionUID = 1L;
 
+        private String name;
+        private Calendar date_time; 
+        private HashMap<String, GregorianCalendar> attendees; //Think about sorting by time (gregCal) of checkin to eliminate waitingList. <-- Bad idea. Will most likely be O(n) every time
+        private HashMap<String, GregorianCalendar> waitinglist; //Change to hashmap. Better to have O(1) lookup & add with O(n) sort than O(n) add and O(1) sort
+        private TreeMap<Building, Integer> eventBuildings;
+        private boolean autoWaitlist; //Set if user wishes all future adds default to waiting list without asking
+        private int max_participants;
+        private HashMap<String, Integer> tickets;
+        //private HashMap<String, HashMap<String, Integer>> ticketCatagories; //<Catagory Name, <ID, # of Tickets>>
 
-//Old Import function that used excel files
+        /**
+         *
+         * @param Name
+         * @param DateTime
+         * @param acceptedBuildings
+         */
+        public Event(String Name, Calendar DateTime, Building[] acceptedBuildings)
+        {
+            name = Name;
+            date_time = DateTime;
+            attendees = new HashMap<>(100);
+            waitinglist = new HashMap<>();
+            max_participants = -1;
+            tickets = new HashMap<>();
+            eventBuildings = new TreeMap<>();
 
-/*
-     * Utilizes poi-3.9 java project to import excel files
-     * NOTE: LICENCSE FILE ADDITION
-     * 
-     * Self-contained function to support importing resident information into database
-     * 
-     * Currently, this information is: Student ID, Last Name, First Name, and 
-     * Bedspace. 
-     * 
-     * Function evolves with resident class and may soon include resident
-     * contact information
-     * 
-     */
-    /*
-    protected void excelImport()
-    {
-        try {
-            JFileChooser fileChooserGUI = new JFileChooser(); //File Chooser window for user
-            String[] acceptedFileTypes = {"xls", "xlsx", "xlsm"}; //restricts files to excel files
-            fileChooserGUI.setFileFilter(new FileNameExtensionFilter(null, acceptedFileTypes)); //restrict file types
-            
-            TreeSet<Integer> usedRowsSet = new TreeSet<>(); //set to keep track of non-empty rows for sample
-            TreeSet<Integer> usedColumnsSet = new TreeSet<>();  //set to keep track of non-empty columns for sample
-            Integer[] usedRowsArr; //once usedRowSet is populated, contents are tranferred to this array
-            Integer[] usedColumnsArr; //once usedColumnSet is populated, contents are tranferred to this array
-            
-            JTable selectorTable; //Table used to display sample of rows/columns
-            Object[][] tableData; //populated with non-empty rows/columns of sample sets
-            Object[] tableHeaders; //Column headers (numbers 1 to # of columns)
-           
-                                    
-
-            
-            if(previous_excel_path != null && previous_excel_path.exists()) //set default fileChooser location to previous location if valid
-                fileChooserGUI.setCurrentDirectory(previous_excel_path);
-            
-            if(fileChooserGUI.showOpenDialog(null) != JFileChooser.APPROVE_OPTION //Check for invalid file
-                    || fileChooserGUI.getSelectedFile() == null 
-                    || !fileChooserGUI.getSelectedFile().exists())
-            { return; }
-            
-
-            previous_excel_path = fileChooserGUI.getSelectedFile(); //update previous selection location
-            
-            XSSFSheet sheet = new XSSFWorkbook(new FileInputStream(fileChooserGUI.getSelectedFile())).getSheetAt(0); //Get first sheet from the workbook
-
-            for(int i = SKIP_ROW_COUNT; (i<=sheet.getLastRowNum() && i<(SKIP_ROW_COUNT+SAMPLE_ROWS)); i++) //populates row & column sets
-            {
-                Row currentRow = sheet.getRow(i);
-                for(int j = 0; j<SAMPLE_COLUMNS; j++){
-                    Cell currentCell = ((currentRow != null)? currentRow.getCell(j) : null);
-                    if(currentCell != null){
-                        switch (currentCell.getCellType()) //Check for numeric or string type cells
-                        {
-                            case Cell.CELL_TYPE_NUMERIC:
-                                usedRowsSet.add(i);
-                                usedColumnsSet.add(j);
-                                break;
-                            case Cell.CELL_TYPE_STRING:
-                                if(!currentCell.getStringCellValue().isEmpty()){ //Makes sure empty cells are not added
-                                    usedRowsSet.add(i);
-                                    usedColumnsSet.add(j);
-                                    
-                                }
-                                break;
-                        }
-                    }
+            if(acceptedBuildings != null && acceptedBuildings.length>0)
+                for(Building b : acceptedBuildings){
+                    eventBuildings.put(b, 0);
                 }
-            }
-            
-            tableData = new Object[usedRowsSet.size()][usedColumnsSet.size()]; //Prepare the table data
-            tableHeaders = new Object[usedColumnsSet.size()]; //prepare column data
-                                    
-            usedRowsArr = usedRowsSet.toArray(new Integer[usedRowsSet.size()]); //populate row array
-            usedColumnsArr = usedColumnsSet.toArray(new Integer[usedColumnsSet.size()]); //populate column array
-
-            for(int i = 0; i<usedRowsSet.size(); i++) //populates tableData with information from cells
-            {
-                Row currentRow = sheet.getRow(usedRowsArr[i]);
-                for(int j = 0; j<usedColumnsSet.size(); j++){
-                    Cell currentCell = ((currentRow != null)? currentRow.getCell(usedColumnsArr[j]) : null);
-                    if(currentCell != null){
-                        switch (currentCell.getCellType()) 
-                        {
-                            case Cell.CELL_TYPE_NUMERIC:
-                                tableData[i][j] = currentCell.getNumericCellValue();
-                                break;
-                            case Cell.CELL_TYPE_STRING:
-                                tableData[i][j] = currentCell.getStringCellValue();
-                                break;
-                        }
-                    }
-                }
-            }
-
-            for(int i = 0; i<usedColumnsSet.size(); i++) //create table headers
-                tableHeaders[i] = i+1;
-            
-            //create uneditable table
-            selectorTable = new JTable(tableData, tableHeaders) { 
-                @Override
-                public boolean isCellEditable(int i, int j)
+            else {
+                for(Iterator<Building> itr = buildings.iterator(); itr.hasNext(); )
                 {
+                    eventBuildings.put(itr.next(), 0);
+                }
+            }
+        };
+
+        /**
+         *
+         * @param Name
+         * @param Date_Time
+         * @param Max_Participants
+         * @param acceptedBuildings
+         */
+        public Event(String Name, GregorianCalendar Date_Time, int Max_Participants, Building[] acceptedBuildings)
+        {
+            name = Name;
+            date_time = Date_Time;
+            attendees = new HashMap<>(Max_Participants);
+            waitinglist = new HashMap<>();
+            max_participants = Max_Participants;
+            tickets = new HashMap<>();
+            eventBuildings = new TreeMap<>();
+            
+            if(acceptedBuildings != null)
+                for(Building b : acceptedBuildings){
+                    eventBuildings.put(b, 0);
+                }
+        };
+        
+        public boolean isBuilding(Building building)
+        {
+            return eventBuildings.containsKey(building);
+        }
+
+        @Override
+        public String toString()
+        {
+            return (date_time.get(Calendar.MONTH)+1)+"/"+date_time.get(Calendar.DAY_OF_MONTH)+"/"+date_time.get(Calendar.YEAR)+" "+name;
+        }
+
+        public boolean removeParticipant(String ID)
+        {
+            if(attendees.remove(ID)!=null || waitinglist.remove(ID) != null)
+            {
+                Building b = extractBuilding(ID);
+                eventBuildings.put(b, eventBuildings.get(b)-1);
+                return true;
+            }
+            return false;
+        }
+
+        public String getLongDate()
+        {
+            return(date_time.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.US)
+                    + " " + date_time.get(Calendar.DAY_OF_MONTH) 
+                    + ", " + date_time.get(Calendar.YEAR));
+        }
+
+        public String getShortDate()
+        {
+            return((date_time.get(Calendar.MONTH)+1)
+                    + "/" + date_time.get(Calendar.DAY_OF_MONTH) 
+                    + "/" + date_time.get(Calendar.YEAR));
+        }
+
+        public String getTime()
+        {
+            return ((date_time.get(Calendar.HOUR)==0)? 12 : date_time.get(Calendar.HOUR))
+                    + ":" + ((date_time.get(Calendar.MINUTE)<10)? "0" : "") + date_time.get(Calendar.MINUTE)
+                    + " " + date_time.getDisplayName(Calendar.AM_PM, Calendar.LONG, Locale.US);
+        }
+
+        public void addTickets(String ID, Integer tick)
+        {
+            if(tick<0){
+                if(tickets.containsKey(ID) && tickets.get(ID)>=Math.abs(tick))
+                    tickets.put(ID, tickets.get(ID)+tick);
+            }
+            else if(tickets.containsKey(ID))
+                tickets.put(ID, tickets.get(ID)+tick);
+            else
+                tickets.put(ID, tick);
+        }
+
+        /**
+         *
+         * @param ID
+         * @return
+         */
+        public boolean isAttendee(String ID)
+        {
+            return attendees.containsKey(ID);
+        }
+
+        public boolean isWaitlisted(String ID)
+        {
+            return waitinglist.containsKey(ID);
+        }
+
+        public String[] Get_Details()
+        {
+            String[] ret = {"",""};
+            ret[0] = "Name: " + name + " \nDate: " 
+                    + date_time.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, Locale.US) + ", " 
+                    + getLongDate() + "\t" + getTime()
+                    + " \nNumber of Attendees: " + attendees.size() + "\nWaiting List size: " 
+                    + ((waitinglist!=null)? waitinglist.size():0)
+                    + ((max_participants==-1)? "\nNo participant limit" : "\nMax Participants: " + max_participants);
+            
+            for(Building b : eventBuildings.keySet())
+            {
+                ret[1] += "\n" + b.toString() + ": " + eventBuildings.get(b);
+            }
+            
+            //ret[1] += "\n*Residents of unlisted buildings cannot check in.\nGo to 'Edit Event' to change";
+
+            return ret;
+        }
+
+        private boolean maxAttendee()
+        {
+            if(max_participants > -1)
+                return attendees.size()>=max_participants;
+            return false;
+        }
+
+        private boolean addAttendee(String ID)
+        {
+            attendees.put(ID, new GregorianCalendar());
+            Building b = extractBuilding(ID);
+            eventBuildings.put(b, eventBuildings.get(b)+1);
+            return true;
+        }
+
+        private boolean addWaitlist(String ID)
+        {     
+            waitinglist.put(ID, new GregorianCalendar());
+            Building b = extractBuilding(ID);
+            eventBuildings.put(b, eventBuildings.get(b)+1);
+            return true;
+        }
+
+        /**
+         *
+         * @return
+         */
+        public String getName() {
+            return name;
+        }
+
+        /**
+         *
+         * @param name
+         */
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        /**
+         *
+         * @return
+         */
+        public Calendar getDateTime() {
+            return date_time;
+        }
+
+        /**
+         *
+         * @param dateTime
+         */
+        public void setDateTime(GregorianCalendar dateTime) {
+            this.date_time = dateTime;
+        }
+
+        /**
+         *
+         * @return
+         */
+        public HashMap<String, GregorianCalendar> getAttendees() {
+            return attendees;
+        }
+
+        /*Security Risk? Needed?
+         * public void setAttendees(HashSet<String> attendees) {
+          //  this.attendees = attendees;
+        }*/
+
+        /**
+         *
+         * @return
+         */
+        public int getMaxParticipants() {
+            return max_participants;
+        }
+
+        /**
+         *
+         * @param maxParticipants
+         */
+        public void setMaxParticipants(int maxParticipants) {
+            this.max_participants = maxParticipants;
+        }
+
+        /**
+         *
+         * @return
+         */
+        public HashMap<String, GregorianCalendar> getWaitinglist() {
+            return waitinglist;
+        }
+
+        /**
+         *
+         * @param autoWaitlist
+         */
+        public void setAutoWaitlist(boolean autoWaitlist)
+        {
+            this.autoWaitlist = autoWaitlist;
+        }
+
+        @Override
+        public int compareTo(Event e) 
+        {
+            if(e.getDateTime().compareTo(date_time) == 0)
+                return name.compareTo(e.getName());
+            return e.getDateTime().compareTo(date_time);
+        }
+
+        /**
+         *
+         * @param g
+         * @return
+         */
+        public int compareTo(GregorianCalendar g)
+        {
+            return date_time.compareTo(g);
+        }
+
+        /**
+         * Searches and returns true if ID is either an attendee or waitlisted for 
+         * this event
+         * 
+         * Search is O(1) (HashMap lookup)
+         * 
+         * @param id student ID to search for
+         * @param results 
+         */
+
+        public boolean search(String id)
+        {
+            return attendees.containsKey(id) || waitinglist.containsKey(id);
+        }
+        
+        public HashMap<String,Integer> getTickets()
+        {
+            return tickets;
+        }
+
+        public ArrayList<String> getTickets(boolean checkIn, boolean waitlist)
+        {
+            ArrayList<String> ret = new ArrayList<>();
+            ArrayList<String> keys = new ArrayList<>(tickets.keySet());
+            Iterator<String> itr = keys.iterator();
+            while(itr.hasNext())
+            {
+                String temp = itr.next();
+                for(int j = 0; j<tickets.get(temp); j++)
+                    ret.add(temp);
+            }
+            if(checkIn)
+                ret.addAll(attendees.keySet());
+            if(waitlist)
+                ret.addAll(waitinglist.keySet());
+            return ret;
+        }
+        
+         protected boolean ticketWindowPopup(String ID)
+        {
+            final JTextField ID_Textfield = new JTextField();
+            final JTextField Increase_Field = new JTextField();
+            Object selected;
+
+            if(ID == null){
+                Increase_Field.setEditable(false);
+                ID_Textfield.addActionListener(verifyIDSwapEditable(ID_Textfield, Increase_Field));
+                selected = ID_Textfield;
+            }
+            else if(attendees.containsKey(ID) || waitinglist.containsKey(ID)){
+                ID_Textfield.setEditable(false);
+                ID_Textfield.setText(ID);
+                selected = Increase_Field;
+            } else {
+               JOptionPane.showMessageDialog(null, "Error: ID given did not attend this event.", "Add Tickets Error", JOptionPane.ERROR_MESSAGE); 
+               return false;
+            }
+
+            Object[] message = {"Swipe ID: ", ID_Textfield, "Add tickets: ", Increase_Field};
+            Object[] options = {"OK", "Cancel"};
+
+            JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, selected);
+            JDialog diag = pane.createDialog("Add Tickets");
+            Increase_Field.addActionListener(ViewerController.disposeDialogActionListener(diag));
+            diag.setVisible(true);
+
+            if(Increase_Field.getText() == null || Increase_Field.getText().length() == 0 || pane.getValue() == null || pane.getValue().equals(options[1]))
+                return false;
+
+            try{
+                Integer Increase_Int = Integer.parseInt(Increase_Field.getText());
+                addTickets(ID_Textfield.getText(), Increase_Int);     
+                return true;
+            } catch (NumberFormatException | NullPointerException ex){
+                JOptionPane.showMessageDialog(null, "Error: improper input for Add Tickets. \nTickets not added.", "Add Tickets Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+        }
+         
+        protected JTable getAttendeesJTable()
+        {
+            return getEventJTable(attendees);
+        }
+        
+        protected JTable getWaitlistJTable()
+        {
+            return getEventJTable(waitinglist);
+        }
+         
+        /**
+        * Formats an event's attendees list into an Object 2-dimensional
+        * array for use in a JTable.
+        * 
+        * Assumed Columns: Check-in Time, Student ID, Last Name, 
+        * First Name, Bedspace, Tickets
+        * 
+        * @param checkInData the event whose attendees list is to be formatted
+        * @return a two-dimensional array formatted for display in a JTable
+        */
+       private JTable getEventJTable(HashMap<String, GregorianCalendar> checkInData)
+       {
+           String[] columnNames = {"Check-in", "ID", "Last Name", "First Name", "Bedspace", "Tickets"};
+           
+           Object[][] ret = new Object[checkInData.size()][6];
+           int i = 0;
+           for(String id : checkInData.keySet())
+           {
+               ret[i][0] = checkInData.get(id).getTime().toString();
+               ret[i][1] = id;
+               ret[i][2] = residents.get(id).getLast_name();
+               ret[i][3] = residents.get(id).getFirst_name();
+               ret[i][4] = residents.get(id).getBedspace();
+               ret[i][5] = ((tickets.containsKey(id))? tickets.get(id) : 0);
+               if((int)ret[i][5]<10 && (int)ret[i][5]>0)
+                   ret[i][5] = "0" + ret[i][5];
+               i++;
+           }
+           
+           JTable table = new JTable(ret, columnNames){ 
+                @Override 
+                public boolean isCellEditable(int row, int column){  
                     return false;
                 }
             };
+           
+           return table;
+       }
 
-            selectorTable.setPreferredScrollableViewportSize(JTablePopUpSize); //MAGIC NUMBERS
-            selectorTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-            selectorTable.setFillsViewportHeight(true);
-            
-            int[] temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a user ID");
-            if(temp == null || temp[1] > usedColumnsArr.length){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            ID_COLUMN_NUMBER = usedColumnsArr[temp[1]];
-            
-            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a LAST name");
-            if(temp == null || temp[1] > usedColumnsArr.length){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            LAST_NAME_COLUMN_NUMBER = usedColumnsArr[temp[1]];
-            
-            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a FIRST name");
-            if(temp == null || temp[1] > usedColumnsArr.length){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            FIRST_NAME_COLUMN_NUMBER = usedColumnsArr[temp[1]];
-            
-            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a BedSpace (ex: CVA-000)");
-            if(temp == null || temp[1] > usedColumnsArr.length){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            BEDSPACE_COLUMN_NUMBER = usedColumnsArr[temp[1]];
+        private ActionListener verifyIDSwapEditable(final JTextField ID_Textfield, final JTextField otherTextField)
+        {
+            return (new ActionListener() {
 
-            for(Iterator<Row> rowIterator = sheet.iterator(); rowIterator.hasNext(); ) 
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    String ID = ViewerController.extractID(ID_Textfield.getText());
+                    if(ID == null || !(attendees.containsKey(ID) || waitinglist.containsKey(ID))){
+                        ID_Textfield.setText("");
+                        //Display message
+                        return;
+                    }
+                    ID_Textfield.setText(ViewerController.extractID(ID_Textfield.getText()));
+                    ID_Textfield.setEditable(false);
+                    otherTextField.setEditable(true);
+                    otherTextField.grabFocus();
+                }
+            });
+        }
+
+        /**
+         * 
+         * @param ID Resident ID to check in
+         * @param suppressCheckinPrompt if true, does not prompt to update check in
+         *  time
+         * @return true if the resident is successfully checked in / check in time
+         *  is updated
+         * @throws CEDuplicateAttendeeException if resident is already attending or
+         *  waitlisted for this event
+         * @throws CEMaximumAttendeesException if maximum attendees is reached
+         */
+        public boolean validAttendee(String ID, boolean suppressCheckinPrompt) throws CEDuplicateAttendeeException, CEMaximumAttendeesException, CENonResidentException, CENonResidentException.CEUnpermittedBuildingException
+        {
+            if(ID == null || !residents.containsKey(ID)){
+                throw new CENonResidentException("Student ID not in Resident Database");//Change to JDialog?
+            }
+            
+            GregorianCalendar checkinTime = null;
+            int[] timeDifference;
+            String message;
+
+            if(isAttendee(ID)) //Is Attendee, O(1) lookup. Best-case scenario
+            {            
+                checkinTime = attendees.get(ID); //O(1) lookup
+            }
+            else if(isWaitlisted(ID)) //Is Waitlisted, O(1) lookup. Best-case scenario
             {
-                String IDString;
-                String firstNameString;
-                String lastNameString;
-                String bedSpace; 
-                
-                Row currentRow = rowIterator.next();           
-                Cell IDCell = currentRow.getCell(ID_COLUMN_NUMBER);
-
-                IDString = (IDCell != null)? IDCell.getStringCellValue() : null;
-
-                if(IDString != null && IDString.length()==ID_CELL_LENGTH && (Arrays.binarySearch(INVALID_ID_STRINGS, IDString)<0))
+                checkinTime = waitinglist.get(ID); //O(1) lookup
+            }
+            else //Has not been checked in
+            {
+                if(eventBuildings.size() > 0 && !eventBuildings.containsKey(extractBuilding(ID)))
                 {
-                    try{
-                        IDString = currentRow.getCell(ID_COLUMN_NUMBER).getStringCellValue();
-                        firstNameString = currentRow.getCell(FIRST_NAME_COLUMN_NUMBER).getStringCellValue();
-                        lastNameString = currentRow.getCell(LAST_NAME_COLUMN_NUMBER).getStringCellValue();                        
-                        bedSpace = currentRow.getCell(BEDSPACE_COLUMN_NUMBER).getStringCellValue();
-                        Resident resident = new Resident(IDString, firstNameString, lastNameString, bedSpace);
-                        synchronized(residents) {   residents.put(IDString, resident);  }
-                    } catch(NullPointerException ex){}
+                    throw new CENonResidentException.CEUnpermittedBuildingException("Resident's Building not allowed to check in");
+                }
+                else if(!maxAttendee()) //Event is NOT full. Check in as attendee
+                {
+                    addAttendee(ID);
+                    return true;
+                }
+                else if(autoWaitlist) //Event IS full and automatic waitlist IS selected
+                {
+                    addWaitlist(ID);
+                    return true;
+                }
+                else //Event IS full and automatic waitlist is NOT selected
+                {
+                    if(maxAttendeeHandler())
+                        return validAttendee(ID, suppressCheckinPrompt);
+                    else
+                        return false;
                 }
             }
-        }   
-        catch (HeadlessException | IOException | NoSuchElementException e) 
-        {
-            JOptionPane.showMessageDialog(null, "An Error Occured while attempting to import."
-                    + "\nPlease check that this is a valid Excel file."
-                    + "\nIt may help to use 'Save As' and create a new excel file to attempt to import from", 
-                    "Internal Error Occured", JOptionPane.ERROR_MESSAGE);
+
+            if(suppressCheckinPrompt) 
+            {            
+                throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
+            }
+
+            timeDifference = ViewerController.getTimeDifference(checkinTime, new GregorianCalendar());
+
+            message = "Resident already swiped in\n" 
+                       + timeDifference[0] + " Days " + timeDifference[1] + " Hours " 
+                       + timeDifference[2] + " Minutes " + timeDifference[3] + " Seconds ago\nRecheck in? "
+                       + "(Previous time is discarded. This does not affect number of tickets)";
+
+               if(JOptionPane.showConfirmDialog(null, message, "Duplicate Resident", JOptionPane.OK_CANCEL_OPTION, JOptionPane.ERROR_MESSAGE) != JOptionPane.OK_OPTION)
+                   throw new CEDuplicateAttendeeException("Resident is already attending this event or is on the waitlist");
+               else if(isAttendee(ID)){
+                   addAttendee(ID);
+                   return true;
+               }
+               else{
+                   addWaitlist(ID);
+                   return true;
+               }
+        }
+
+        /** 
+         * Event's implementation to handle an event that has reached its maximum 
+         * number of attendees.
+         * 
+         * Allows a user to 
+         * a) increase (or disable) the max attendee limit 
+         * b) start a waiting list for this event, 
+         * c) Do nothing. If a resident sign-in triggered this function, 
+         * the resident will not be added
+         * 
+         * @return true if waitlist or increased attendees, false if bad 
+         * authenication or user decides not to increase/activate max/waitlist
+         */
+        private boolean maxAttendeeHandler() 
+        {       
+            JFormattedTextField increaseByField = new JFormattedTextField(NumberFormat.getIntegerInstance());
+
+            String message = "This event has reached its maxiumum number of "
+                    + "attendees. This value was set when the event was created, "
+                    + "\nYou can: ";
+
+            JRadioButton op1 = new JRadioButton("Increase the limit "
+                    + "(current limit: " + getMaxParticipants() + "). "
+                    + "A value of 0 will remove the limit. Increase limit by:");
+
+            JRadioButton op2 = new JRadioButton("Start a waiting list. "
+                    + "\nAll IDs swiped for this event after this point will go "
+                    + "on a printable waiting list");
+
+            JRadioButton op3 = new JRadioButton("Don't add anymore attendees, "
+                    + "including this one.");
+
+            ButtonGroup group = new ButtonGroup();
+            group.add(op1);
+            group.add(op2);
+            group.add(op3);
+
+
+            Object[] options = {message, op1, increaseByField, op2, op3};
+
+            int temp = JOptionPane.showOptionDialog(null, options, "Max Attendees Reached", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE, null, null, null);
+            boolean select = (temp != JOptionPane.CANCEL_OPTION && temp != JOptionPane.CLOSED_OPTION);
+
+            if(select && op1.isSelected()){
+                try{
+                    increaseByField.commitEdit();
+                    Integer inc = (Integer) increaseByField.getValue();
+
+                    if(inc == null || inc < 0) {
+                        JOptionPane.showMessageDialog(null, "Error: Invalid increase amount entered.", "Increase Error", JOptionPane.ERROR_MESSAGE);
+                        return false;
+                    }
+                    synchronized(this) {
+                        if(inc == 0)
+                            setMaxParticipants(-1);
+                        else
+                            setMaxParticipants(getMaxParticipants()+inc);
+                    }
+                    return true;
+                }
+                catch(ParseException | NullPointerException ex){
+                    JOptionPane.showMessageDialog(null, "Error: Invalid increase amount entered.", "Increase Error", JOptionPane.ERROR_MESSAGE);
+                    return false;
+                }        
+            }
+
+            else if(select && op2.isSelected()){
+                synchronized(this) {
+                    setAutoWaitlist(true);
+                }
+                return true;
+            }
+
+            return false;
+        }
+
+        @Override
+        public Object getColumn(int i) {
+            switch (i){
+                case 1:
+                    return getShortDate() + " " + getTime();
+                case 2:
+                    return getName();
+                case 3:
+                    return getAttendees().size();
+                case 4:
+                    return getWaitinglist().size();
+                case 5:
+                    return this;
+                default:
+                    return null;
+            }
+        }
+
+        private void updateBuildings(Building[] allowedBuildings) {
+            TreeMap<Building, Integer> newBuildings = new TreeMap<>();
+            for(Building b : allowedBuildings)
+                newBuildings.put(b, 0);
+            
+            Set<Building> bSet = eventBuildings.keySet();
+            Iterator<Building> itr = bSet.iterator();
+            
+            Building b;
+            Building restore;
+            while(itr.hasNext())
+            {
+                b = itr.next();
+                restore = new Building(b.name.replace("_REMOVED", ""));
+                if(newBuildings.containsKey(restore))
+                {
+                    newBuildings.put(restore, eventBuildings.get(b));
+                }
+                else if(eventBuildings.get(b) > 0)
+                {
+                    newBuildings.put(new Building(b.name + "_REMOVED"), eventBuildings.get(b));
+                }
+            }
+            
+            eventBuildings = newBuildings;          
         }
     }
-    */
+    
+    public final class Building implements Comparable<Building>, Serializable, TreeSet_TableModel_ComboBoxModel.TableModel_ComboModel_Interface
+    {
+        private String name;
+        
+        public Building(String Name)
+        {
+            name = Name;
+        }
+        
+        @Override
+        public Object getColumn(int i) {
+            if(i == 1)
+                return this;
+            return null;
+        }
+        
+        @Override
+        public String toString()
+        {
+            return name;
+        }
+
+        @Override
+        public int compareTo(Building o) {
+            return name.compareToIgnoreCase(o.name);
+        }
+        
+        @Override
+        public boolean equals(Object o)
+        {
+            if(o == null)
+                return false;
+            
+            try {
+                Building b = (Building) o;
+                return name.equalsIgnoreCase(b.name);
+            } catch (NullPointerException ex)
+            {
+                return false;
+            }
+        }
+        
+        @Override
+        public int hashCode()
+        {
+            return name.hashCode();
+        }
+        
+    }
+}

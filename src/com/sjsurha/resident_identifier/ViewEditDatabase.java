@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.sjsurha.resident_identifier;
 
 import com.sjsurha.resident_identifier.Exceptions.CEEncryptionErrorException;
@@ -44,7 +40,7 @@ public final class ViewEditDatabase extends JPanel
     private final JButton addResident;
     private final JButton deleteResidents; //DELETE ALL RESIDENTS BUTTON
     private final JButton deleteEvents;  
-    //private final JButton editVariables;
+    private final JButton editVariables;
     private final JButton mergeDatabase;  
     private final JButton viewLog;
     //private final JButton clearLog;
@@ -64,7 +60,7 @@ public final class ViewEditDatabase extends JPanel
         addResident = new JButton("Manually Add Resident");
         deleteResidents = new JButton("Delete All Residents");
         deleteEvents = new JButton("Delete All Events");
-        //editVariables;
+        editVariables = new JButton("Edit Database Varibles");
         mergeDatabase = new JButton("Merge with Existing Database");
         viewLog = new JButton("View Log Entries");
         //clearLog = new JButton("Clear Log");
@@ -78,7 +74,7 @@ public final class ViewEditDatabase extends JPanel
         addResident.addActionListener(addResidentActionListener());        
         deleteResidents.addActionListener(deleteResidents());
         deleteEvents.addActionListener(deleteEventsActionListener());
-        //editVariables
+        editVariables.addActionListener(editVariablesActionListener());
         mergeDatabase.addActionListener(mergeActionListener());
         viewLog.addActionListener(viewLogActionListener());
         
@@ -102,12 +98,13 @@ public final class ViewEditDatabase extends JPanel
         databasePanel.add(addResident);
         databasePanel.add(deleteResidents);
         databasePanel.add(deleteEvents);
-        //databasePanel.add(programVariables);
         loggingPanel.add(mergeDatabase); //Yeah, I know. But I need this for visual purposes. Open to suggestions for a better layout scheme
         loggingPanel.add(viewLog);
+        loggingPanel.add(editVariables);
         //loggingPanel.add(clearLog);
         
         resetPin.setEnabled(false);
+        editVariables.setEnabled(false);
         
         this.add(currentResCount);
         this.add(adminAndUserPanel);
@@ -125,7 +122,7 @@ public final class ViewEditDatabase extends JPanel
 
     private void updateText()
     {
-        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Users in Database: " + model.userCount() + "\nNumber of Residents in Database: " + model.residentCount());
+        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Users in Database: " + model.userCount() + "\nNumber of Residents in Database: " + model.residentCount() + "\nNumber of Buildings in Database: " + model.buildingCount());
     }
 
     private ActionListener importActionListener()
@@ -226,7 +223,8 @@ public final class ViewEditDatabase extends JPanel
                 final JFileChooser fileChooserGUI = new JFileChooser(); //File Chooser window for user
                 
                 
-                JCheckBox checkAdmins = new JCheckBox("Import Admins"), 
+                JCheckBox checkAdmins = new JCheckBox("Import Admins"),
+                        checkUsers = new JCheckBox("Import Users"),
                         checkEvents = new JCheckBox("Import Events"), 
                         checkResidents = new JCheckBox("Import Residents");
 
@@ -239,6 +237,7 @@ public final class ViewEditDatabase extends JPanel
                 
                 //create JPanel to hold checkboxes
                 checkBoxesPanel.add(checkAdmins);
+                checkBoxesPanel.add(checkUsers);
                 checkBoxesPanel.add(checkEvents);
                 checkBoxesPanel.add(checkResidents);                
                 
@@ -250,7 +249,7 @@ public final class ViewEditDatabase extends JPanel
 
                 try {
                     Model modelIn = ViewerController.unseal(fileChooserGUI.getSelectedFile(), ViewerController.initializeSealedObject(checkBoxesPanel));
-                    model.mergeDatabase(modelIn, checkAdmins.isSelected(), checkEvents.isSelected(), checkResidents.isSelected());
+                    model.mergeDatabase(modelIn, checkAdmins.isSelected(), checkUsers.isSelected(), checkEvents.isSelected(), checkResidents.isSelected());
                 } catch (        CEEncryptionErrorException | FileNotFoundException ex) {
                     Logger.getLogger(ViewEditDatabase.class.getName()).log(Level.SEVERE, null, ex);
                     //Error Message Please
@@ -318,7 +317,6 @@ public final class ViewEditDatabase extends JPanel
                 
                 logTable.setAutoCreateRowSorter(true);
                 logTable.setPreferredScrollableViewportSize(new Dimension(800, 600));
-                //ColumnsAutoSizer.sizeColumnsToFit(logTable);
                 logTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
                 logTable.setLayout(new BorderLayout());
                 logTable.getRowSorter().toggleSortOrder(0);
@@ -334,6 +332,16 @@ public final class ViewEditDatabase extends JPanel
             @Override
             public void actionPerformed(ActionEvent e) {
                 throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            }
+        };
+    }
+
+    private ActionListener editVariablesActionListener() {
+        return new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                
             }
         };
     }

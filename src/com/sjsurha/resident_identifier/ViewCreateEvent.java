@@ -9,6 +9,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import javax.swing.BoxLayout;
@@ -17,7 +18,10 @@ import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.table.TableModel;
 
 /**
  *
@@ -31,6 +35,7 @@ public final class ViewCreateEvent extends JPanel
     private JPanel time_panel;
     private JTextField max_participants_textfield;
     private JButton submit_button;
+    private JTable restrict_buildings;
 
     public ViewCreateEvent(Model ModelIn)
     {
@@ -63,12 +68,16 @@ public final class ViewCreateEvent extends JPanel
         time_panel = new JPanel();
         final JComboBox hour = ViewerController.Get_Time_Selector()[0];
         final JComboBox minute = ViewerController.Get_Time_Selector()[1];
-        hour.setSelectedIndex(7);
+        hour.setSelectedIndex(Calendar.getInstance().get(Calendar.HOUR_OF_DAY));
         minute.setSelectedIndex(0);
         time_panel.add(new JLabel("Time: "));
         time_panel.add(hour);
         time_panel.add(minute);
-
+        
+        restrict_buildings = model.getBuildingJTable();
+        
+        JScrollPane scroll_restrict_buildings = new JScrollPane(restrict_buildings);
+        scroll_restrict_buildings.setPreferredSize(new Dimension(50, 150)); //MAGIC NUMBERS
 
         submit_button = new JButton("Submit");
         submit_button.addActionListener(Submit_ActionListener(hour, minute));            
@@ -79,17 +88,26 @@ public final class ViewCreateEvent extends JPanel
         left_panel.add(name_panel);
         left_panel.add(time_panel);
         left_panel.add(participant_panel);
+        left_panel.add(scroll_restrict_buildings);
 
 
         this.add(left_panel, BorderLayout.WEST);
         this.add(right_panel, BorderLayout.CENTER);
         this.add(submit_button, BorderLayout.SOUTH);
+        
+        clear();
     }
 
     private void clear()
     {
         name_textfield.setText("");
         max_participants_textfield.setText("0");
+        TableModel tableModel = restrict_buildings.getModel();
+        for(int i = 0; i<tableModel.getRowCount(); i++)
+        {
+            tableModel.setValueAt(true, i, 0);
+        }
+        this.repaint();
     }
 
     private ActionListener Submit_ActionListener(final JComboBox hour, final JComboBox minute)
@@ -103,13 +121,15 @@ public final class ViewCreateEvent extends JPanel
                 }
                 
                 Calendar cal = date_selection.getCalendar();
+                cal.set(Calendar.HOUR_OF_DAY, hour.getSelectedIndex());
+                cal.set(Calendar.MINUTE, minute.getSelectedIndex()*5);
                 String max_partic_string = max_participants_textfield.getText();
                 Integer max_partic_int = 0;
                 try{ max_partic_int = Integer.parseInt(max_partic_string); } catch (NullPointerException ex){}
                 
                 if(max_partic_int > 0) {
-                    Event temp_event = model.createEvent(name_textfield.getText(), cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), hour.getSelectedIndex(), minute.getSelectedIndex()*5, max_partic_int); 
-                    if(temp_event != null) {
+                    Model.Event temp_event = model.new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings));
+                    if(model.addEvent(temp_event)) {
                         clear();
                     } else
                         JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);
@@ -126,8 +146,8 @@ public final class ViewCreateEvent extends JPanel
                 } 
                 
                 else {
-                    Event temp_event = model.createEvent(name_textfield.getText(), cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH), hour.getSelectedIndex(), minute.getSelectedIndex()*5); 
-                    if(temp_event != null){
+                    Model.Event temp_event = model. new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings)); 
+                    if(model.addEvent(temp_event)){
                         clear();
                     } else
                         JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);                            

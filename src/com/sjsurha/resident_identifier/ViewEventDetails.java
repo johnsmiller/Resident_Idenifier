@@ -1,8 +1,10 @@
 package com.sjsurha.resident_identifier;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.TextComponent;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.BoxLayout;
@@ -13,7 +15,9 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextPane;
+import javax.swing.text.JTextComponent;
 
 
 /**
@@ -25,6 +29,7 @@ public final class ViewEventDetails extends JPanel{
     private final Model model;
     private final JComboBox eventCombobox;
     private final JTextPane eventDetail;
+    private final JTextPane eventBuildingDetail;
     private final JButton viewAttendees;
     private final JButton viewWaitlist;
     private final JButton addTickets;
@@ -42,9 +47,15 @@ public final class ViewEventDetails extends JPanel{
         eventDetail = new JTextPane();
         eventDetail.setEditable(false);
         eventDetail.setPreferredSize(new Dimension(500,200));
-        if(eventCombobox.getSelectedItem() != null)
-            eventDetail.setText(((Event)eventCombobox.getSelectedItem()).Get_Details());
-        this.add(eventDetail);
+        //this.add(eventDetail);
+        
+        eventBuildingDetail = new JTextPane();
+        eventBuildingDetail.setEditable(false);
+        
+        JPanel textJPanel = new JPanel(new BorderLayout());
+        textJPanel.add(eventDetail, BorderLayout.CENTER);
+        textJPanel.add(eventBuildingDetail, BorderLayout.EAST);
+        this.add(textJPanel);
 
         viewAttendees = new JButton("View Attendees");
         viewAttendees.addActionListener(displayCheckInActionListener(true));
@@ -60,14 +71,17 @@ public final class ViewEventDetails extends JPanel{
         view_buttons.add(viewWaitlist);
         view_buttons.add(addTickets);
         this.add(view_buttons);
+        
+        repaint();
     }
 
     @Override
     public void repaint()
     {
         if(eventCombobox != null && eventCombobox.getSelectedItem()!=null){
-            String temp = ((Event)eventCombobox.getSelectedItem()).Get_Details();
-            eventDetail.setText(temp);
+            String[] temp = ((Model.Event)eventCombobox.getSelectedItem()).Get_Details();
+            eventDetail.setText(temp[0]);
+            eventBuildingDetail.setText(temp[1]);
         }
         super.repaint();
     }
@@ -82,8 +96,9 @@ public final class ViewEventDetails extends JPanel{
                     eventDetail.setText("");
                     return;
                 }
-                String temp = ((Event)eventCombobox.getSelectedItem()).Get_Details();
-                eventDetail.setText(temp);
+                String[] temp = ((Model.Event)eventCombobox.getSelectedItem()).Get_Details();
+                eventDetail.setText(temp[0]);
+                eventBuildingDetail.setText(temp[1]);
             }
         };
     }
@@ -94,20 +109,15 @@ public final class ViewEventDetails extends JPanel{
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                Event event = (Event) eventCombobox.getSelectedItem();    
+                Model.Event event = (Model.Event) eventCombobox.getSelectedItem();    
                 String[] columnNames = {"Check-in", "ID", "Last Name", "First Name", "Bedspace", "Tickets"};
                 
                 if(event == null || !model.authenticationPopup(LogEntry.Level.Administrator, "Event " + (attendeeTable? "Attendee Table" : "Waitinglist Table")  + " viewed: " + event.toString()))
                     return;                 
 
-                final JTable checkInTable = new JTable(model.getEventJTable((attendeeTable? event.getAttendees() : event.getWaitinglist()), event.getTickets()), columnNames){ 
-                    @Override 
-                    public boolean isCellEditable(int row, int column){  
-                        return false;
-                    }
-                };
+                final JTable checkInTable = (attendeeTable? event.getAttendeesJTable() : event.getWaitlistJTable());
                 checkInTable.setAutoCreateRowSorter(true);
-                checkInTable.setPreferredScrollableViewportSize(model.JTablePopUpSize);
+                checkInTable.setPreferredScrollableViewportSize(ViewerController.JTablePopUpSize);
                 checkInTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
                 checkInTable.setFillsViewportHeight(true);
                 
@@ -141,7 +151,7 @@ public final class ViewEventDetails extends JPanel{
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                Event event = (Event) eventCombobox.getSelectedItem();
+                Model.Event event = (Model.Event) eventCombobox.getSelectedItem();
                 event.ticketWindowPopup(null);
             }
         };
@@ -154,7 +164,7 @@ public final class ViewEventDetails extends JPanel{
             @Override
             public void actionPerformed(ActionEvent e) {
                 if(mssage.getSelectedRow() != -1) {
-                    Event event = (Event) eventCombobox.getSelectedItem();
+                    Model.Event event = (Model.Event) eventCombobox.getSelectedItem();
                     if(event.ticketWindowPopup((String)mssage.getModel().getValueAt(mssage.getSelectedRow(), idColumn)))
                     {
                         
@@ -166,8 +176,10 @@ public final class ViewEventDetails extends JPanel{
     
     @Override
     public void setBackground(Color color) {
-        if(eventDetail != null)
+        if(eventDetail != null && eventBuildingDetail != null){
             eventDetail.setBackground(color);
+            eventBuildingDetail.setBackground(color);
+        }
         super.setBackground(color); 
     }
 }

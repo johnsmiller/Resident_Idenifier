@@ -4,6 +4,7 @@ import com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedExceptio
 import com.sjsurha.resident_identifier.Exceptions.CEEncryptionErrorException;
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -20,6 +21,8 @@ import java.io.ObjectOutputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
+import java.util.GregorianCalendar;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.crypto.BadPaddingException;
@@ -35,6 +38,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.Timer;
+import javax.swing.table.TableModel;
 import javax.swing.text.JTextComponent;
 
 /**
@@ -50,6 +54,9 @@ public final class ViewerController implements Runnable{
     private final int AUTOSAVE_DURATION = 120 * 1000; //Time in miliseconds that the program automatically saves the edited model
     
     protected final static String SEALED_MODEL_FILE_NAME = "sealedModel0.ser"; //Name of local encrypted database. Used for unsealing/sealing/autosaving
+    //Stored, public program variables
+    //Global Variables for ViewPanes
+    protected final static Dimension JTablePopUpSize = new Dimension(600, 400);
     
     /**
      * Constructor decrypts serialized model instance at SEALED_MODEL_FILE_NAME or creates new model if one does not exist
@@ -273,6 +280,35 @@ public final class ViewerController implements Runnable{
             return null;
     }
     
+    protected static int[] getTimeDifference(GregorianCalendar start, GregorianCalendar stop)
+    {
+        if(start.compareTo(stop)>0){
+            GregorianCalendar temp = start;
+            start = stop;
+            stop = temp;
+        }
+        double diff_seconds = (stop.getTimeInMillis() - start.getTimeInMillis())/1000.0;
+        int days = 0;
+        int hours = 0;
+        int minutes = 0;
+        int seconds = 0;
+        while(diff_seconds>=86400){
+            days++;
+            diff_seconds-=86400;
+        } 
+        while(diff_seconds>=3600){
+            hours++;
+            diff_seconds-=3600;
+        }
+        while(diff_seconds>=60){
+            minutes++;
+            diff_seconds-=60;
+        }
+        seconds = (int) diff_seconds;
+        int[] ret = {days,hours,minutes,seconds};
+        return ret;
+    }
+    
     /**
      * Builds JTabbedPane for JFrame (Main GUI for user interaction)
      * 
@@ -308,57 +344,19 @@ public final class ViewerController implements Runnable{
         return ret;
     }
     
-    /**
-     * DEPRECIATED
-     * Launches new thread and updates following fields as described once delay has elapsed
-     * 
-     * DOES NOT CHECK IF THE FIELDS HAVE HAD ANOTHER VERSION OF THIS THREAD LAUNCHED
-     * For instance: Checking two people in within 2 seconds. Field reset 2 seconds after 1st check-in
-     * 
-     * Create new class / interface that keeps local update value (most recent system.nanoseconds)
-     *  updated for every thread launched
-     *  setColor() and SetText() methods
-     * 
-     * @param textField array of JTextComponents. Updated with text after milisecDuration miliseconds
-     * @param colorField array of Components who's setBackground() method is called with color after milisecDuration
-     * @param text string to update JTextComponents with
-     * @param color color to update Components with
-     * @param milisecDuration delay before updating fields
-     */
-           
-    protected static void setRunnableColorTextUpdate(final JTextComponent[] textField, final Component[] colorField, final String text, final Color color, final long milisecDuration)
+    protected static Model.Building[] getBuildings(JTable buildingsJTable)
     {
-        Thread t1 = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                
-                /*Component comp = new Component() {public long modified = System.nanoTime(); @Override public String toString() { return null;}};
-                for(JTextComponent j : textField){
-                    //Set variable to check to update
-                    j.add(comp);
-                }*/
-                try {   Thread.sleep(milisecDuration);  } 
-                catch (InterruptedException ex) {} 
-                finally {
-                    for(JTextComponent j : textField){
-                        //If variable has not changed
-                        /*Component[] temp = j.getComponents();
-                        if(temp[temp.length-1].equals(comp)){*/
-                            j.setText(text);
-                            j.repaint();
-                        //}
-                        //j.remove(comp);
-                        //Else do not update
-                    }
-                    for(Component c :colorField){
-                        c.setBackground(color);
-                        c.repaint();
-                    }
-                }
-            }
-        });
+        TableModel tableModel = buildingsJTable.getModel();
         
-        t1.start();
+        ArrayList<Model.Building> ret = new ArrayList();
+        
+        for(int i = 0; i < tableModel.getRowCount(); i++)
+        {
+            if((boolean)tableModel.getValueAt(i, 0))
+                ret.add((Model.Building)tableModel.getValueAt(i, 1));
+        }
+        
+        return ret.toArray(new Model.Building[ret.size()]);
     }
     
     /**
@@ -369,7 +367,7 @@ public final class ViewerController implements Runnable{
      */
     @Override
     public void run() {
-        model.removeAllEventListeners();
+        model.removeAllListeners();
         saveModel();
     }
     
@@ -446,4 +444,60 @@ public final class ViewerController implements Runnable{
         //Print Event
          
          
+*/
+
+
+/*
+     * DEPRECIATED
+     * Launches new thread and updates following fields as described once delay has elapsed
+     * 
+     * DOES NOT CHECK IF THE FIELDS HAVE HAD ANOTHER VERSION OF THIS THREAD LAUNCHED
+     * For instance: Checking two people in within 2 seconds. Field reset 2 seconds after 1st check-in
+     * 
+     * Create new class / interface that keeps local update value (most recent system.nanoseconds)
+     *  updated for every thread launched
+     *  setColor() and SetText() methods
+     * 
+     * @param textField array of JTextComponents. Updated with text after milisecDuration miliseconds
+     * @param colorField array of Components who's setBackground() method is called with color after milisecDuration
+     * @param text string to update JTextComponents with
+     * @param color color to update Components with
+     * @param milisecDuration delay before updating fields
+     */
+    /*       
+    protected static void setRunnableColorTextUpdate(final JTextComponent[] textField, final Component[] colorField, final String text, final Color color, final long milisecDuration)
+    {
+        Thread t1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                
+                /*Component comp = new Component() {public long modified = System.nanoTime(); @Override public String toString() { return null;}};
+                for(JTextComponent j : textField){
+                    //Set variable to check to update
+                    j.add(comp);
+                }
+                try {   Thread.sleep(milisecDuration);  } 
+                catch (InterruptedException ex) {} 
+                finally {
+                    for(JTextComponent j : textField){
+                        //If variable has not changed
+                        /*Component[] temp = j.getComponents();
+                        if(temp[temp.length-1].equals(comp)){ //
+                            j.setText(text);
+                            j.repaint();
+                        //}
+                        //j.remove(comp);
+                        //Else do not update
+                    }
+                    for(Component c :colorField){
+                        c.setBackground(color);
+                        c.repaint();
+                    }
+                }
+            }
+        });
+        
+        t1.start();
+    }
+    
 */

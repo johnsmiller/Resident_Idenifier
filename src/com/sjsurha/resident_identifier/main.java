@@ -20,7 +20,7 @@ public class main {
      */
     public static void main(String[] args) 
     {
-        Dimension frameSize = new Dimension(550, 300);
+        Dimension frameSize = new Dimension(625, 300);
         ViewerController temp;
         try {
             temp = new ViewerController();
@@ -48,8 +48,9 @@ public class main {
 /**
  * ----------------------
  * Current Issue Tracker:
- *  - Sensitive Information is visible to admin users. 
+ *  - JavaDocs are a mess
  * 
+ *  - MergeDatabase needs revisiting. (more options & thoughtfulness towards behavior)
  * 
  *  - In ViewEditDatabase, JFileChooser in mergeActionListener is causing thread exceptions under certain conditions
  *      Status: Benign / Java Source COde Error
@@ -75,6 +76,13 @@ public class main {
  *      - Touch-screen signature capture for prizes
  *      - Let residents choose categories without holding up check-in
  * 
+ * -Winning
+ *      - List of Winner(s) is communicated to App from program. 
+ *      - Resident swipes or types their ID
+ *      - if they won, screen displays "Congratulations! You won [prize name] \n Please enter your info & sign below"
+ *      - Resident uses finger or stylus to sign for prize & enters any other needed info (phone #, email, etc) & submits
+ *      - Information (signature capture & entered info) is reported back to program & screen displays "Thank You" before resetting back to regular screen.
+ * 
  * -------------------------
  * Project Octagon
  *  Features
@@ -84,12 +92,6 @@ public class main {
  *              - Create Event Pane
  *              - Android App? (thread safe)
  *              - Event Details Pane
- *  
- *      Building Specific Checkin
- *          - Stats by Building (Event details pane) (Recalculation costly, only when Edit event pane is used, else increment on check-in)
- *          - Remember Previous Selection?
- *          - New Error Message & Handling ("In database but not in selected building")
- *          - Make buildings HashSet implement TableModel. Protect from edits outside model.
  * 
  *      Variable Adjustment Screen
  *          Include: 
@@ -111,6 +113,16 @@ public class main {
  *              - min length
  *              - chars & numbers?
  * 
- *      ID Attack Detection
+ *      ID Attack Detection & Security Manager
  *          Implement properly.
+ * 
+ * ----Octagon Completed Tasks--------
+ * Building Specific Checkin --satisfactory 
+ *          - Stats by Building (Event details pane) (Recalculation costly, only when Edit event pane is used, else increment on check-in) --done
+ *          - Remember Previous Selection? --no
+ *          - New Error Message & Handling ("In database but not in selected building") --done
+ *          - Make buildings HashSet implement TableModel. --done.      Protect from edits outside model. 
+ * 
+ *  - Sensitive Information is visible to admin users. 
+ *      - New user level: user. Intended for Hall Government users so they don't have access to sensitive resident info.
  */

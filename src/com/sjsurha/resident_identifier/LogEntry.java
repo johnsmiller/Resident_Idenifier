@@ -84,4 +84,9 @@ public final class LogEntry implements Comparable<LogEntry>, Serializable{
         return l.getTime().compareTo(time);
     }
     
+    protected void archived()
+    {
+        message = "*" + message;
+    }
+    
 }

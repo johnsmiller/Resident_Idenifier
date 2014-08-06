@@ -112,7 +112,7 @@ public final class ViewTickets extends JPanel
                     for(int i = 0; i<eventList.getRowCount(); i++)
                     {
                         if((boolean)eventList.getValueAt(i, 0))
-                            selectedTickets.addAll(((Event)eventList.getModel().getValueAt(i, 5)).getTickets(includeCheckins.isSelected(), includeWaitlist.isSelected()));
+                            selectedTickets.addAll(((Model.Event)eventList.getModel().getValueAt(i, 5)).getTickets(includeCheckins.isSelected(), includeWaitlist.isSelected()));
                     }                     
                     if(selectedTickets.size()>0 && model.authenticationPopup(LogEntry.Level.User, "Entered Opportunity Drawing Mode")){
                         Random rand = new Random();

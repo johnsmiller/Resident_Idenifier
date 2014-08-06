@@ -1,12 +1,9 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.sjsurha.resident_identifier;
 
 import com.sjsurha.resident_identifier.Exceptions.CEDuplicateAttendeeException;
 import com.sjsurha.resident_identifier.Exceptions.CEMaximumAttendeesException;
 import com.sjsurha.resident_identifier.Exceptions.CENonResidentException;
+import static com.sjsurha.resident_identifier.Exceptions.CENonResidentException.CEUnpermittedBuildingException;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -26,8 +23,7 @@ import javax.swing.JTextPane;
  */
 public final class ViewSignIn extends JPanel
 {
-    private final long resetInterval = 2 * 1000;
-    
+    private final long RESET_INTERVAL_DEFAULT_VALUE = 2 * 1000;
     private final Model model; //Perhaps move away from storing model for security reasons?
     private final JTextField idInput;
     private final JComboBox event_combobox;
@@ -109,32 +105,39 @@ public final class ViewSignIn extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
+                String id = null;
+                long reset_interval = RESET_INTERVAL_DEFAULT_VALUE;
                 try {
-                    if(idInput.getText().length()<9){
-                        setDisplay("Card read error. Please try again", Color.YELLOW);
-                        return;
-                    }
-                    
                     if(event_combobox.getSelectedItem()==null){
                         JOptionPane.showMessageDialog(null, "Please select an event.", "Sign-in error", JOptionPane.ERROR_MESSAGE);
                         return;
                     }
                     
-                    String id = ViewerController.extractID(idInput.getText());
-                    Event event = (Event)event_combobox.getSelectedItem();
+                    id = ViewerController.extractID(idInput.getText());
                     
-                    if(model.addAttendee(id, event, suppressRecheckinPrompt.isSelected())){
-                        setDisplay("Resident Sign-in Successful", Color.GREEN);
+                    if(id==null){
+                        setDisplay("Card read error. Please try again", Color.YELLOW);
+                        return;
                     }
-                } catch (CEDuplicateAttendeeException ex) {
-                    setDisplay("Error: Resident has already signed in for this event", Color.RED);
+                    
+                    Model.Event event = (Model.Event)event_combobox.getSelectedItem();
+                    
+                    if(event.validAttendee(id, suppressRecheckinPrompt.isSelected())){
+                        setDisplay(model.extractBuilding(id) + " Resident Sign-in Successful", Color.GREEN);
+                    }
+                } catch (CEDuplicateAttendeeException ex) { //Why not just extract Exception mssg and save myself all these different exception types?
+                    setDisplay("Error: Resident has already signed in for this event", Color.RED); //Black text on red BG hard to see
                 } catch (CENonResidentException ex) {
-                    setDisplay("Error: Resident not found. This could be a database error. \nTry typing in the ID manually\nAdmin users can manually add a resident after verifying they are residents", Color.RED);
+                    setDisplay("Error: Resident not found. This could be a database error. \nTry typing in the ID manually", Color.RED);
+                    reset_interval = 3 * 1000;
                 } catch (CEMaximumAttendeesException ex) {
                     setDisplay("There was an error adding this resident. Please try again.", Color.YELLOW);
+                } catch (CEUnpermittedBuildingException ex) {
+                    setDisplay(model.extractBuilding(id) + " Residents not allowed to check into this event", Color.YELLOW);
+                    reset_interval = 3 * 1000;
                 } finally {
                     idInput.setText("");
-                    reset();
+                    reset(reset_interval);
                 }
             }
         };
@@ -147,7 +150,7 @@ public final class ViewSignIn extends JPanel
         repaint();
     }
     
-    private void reset()
+    private void reset(final long resetInterval)
     {
         Thread t1 = new Thread(new Runnable() {
             @Override
@@ -161,10 +164,9 @@ public final class ViewSignIn extends JPanel
                 try {   Thread.sleep(resetInterval);  } 
                 catch (InterruptedException ex) {} 
                 finally {
-                    if(!threadIDCopy.equals(resetThreadID)) //Check if another thread has launched since reset was scheduled
-                        return;
-                    
-                    setDisplay("Swipe ID to Check-in", Color.WHITE);
+                    if(threadIDCopy.equals(resetThreadID)) {
+                        setDisplay("Swipe ID to Check-in", Color.WHITE);
+                    }
                 }
             }
         });

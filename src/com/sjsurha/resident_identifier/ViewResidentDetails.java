@@ -59,12 +59,12 @@ public final class ViewResidentDetails extends JPanel
                     return;
                 }
                 if(model.checkResident(ID)){
-                    TreeSet<Event> attended = model.getAttendedEvents(ID);
-                    if(attended.size() == 0)
+                    TreeSet<Model.Event> attended = model.getAttendedEvents(ID);
+                    if(attended.isEmpty())
                         textArea.setText("Is resident\nNo event records");
                     else {
                         String message = "Is resident. Attended following events:";
-                        for(Event ev : attended)
+                        for(Model.Event ev : attended)
                             message += "\n\t" + ev.getName() + " " + ev.getLongDate() + " " + ev.getTime();
                         textArea.setText(message);
                     }

@@ -1,5 +1,6 @@
 package com.sjsurha.resident_identifier;
 
+import com.sjsurha.resident_identifier.TreeSet_TableModel_ComboBoxModel.TableModel_ComboModel_Interface;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.TreeSet;
@@ -15,25 +16,37 @@ import javax.swing.table.TableModel;
  * @author John Miller
  */
 /**
- * TreeSet<Event> class that implements the TableModel and ComboBoxModel interfaces
+ * TreeSet<Model.Event> class that implements the TableModel and ComboBoxModel interfaces
  */
-public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implements TableModel, ComboBoxModel<Event>
+
+public class TreeSet_TableModel_ComboBoxModel<T1 extends TableModel_ComboModel_Interface> extends TreeSet<T1> implements TableModel, ComboBoxModel<T1>
 {
     private static final long serialVersionUID = 1L;
-    private final String[] headers = {"Select", "Event Date", "Event Name", "Attendees", "Waitlisted"};
+    private final String[] headers;
     private boolean[] tableBooleanSelection;
     private static HashSet<TableModelListener> tableModelListeners;
     private static HashSet<ListDataListener> comboBoxModelListDataListeners;
-    Event[] modelEventArray;
+    Object[] modelArray;
     private Object comboBoxModelSelectedItem;
 
-    public EventTreeSet_TableModel_ComboBoxModel()
+    public TreeSet_TableModel_ComboBoxModel()
     {
         super();
         tableBooleanSelection = new boolean[super.size()];
         tableModelListeners = new HashSet<>(5);
         comboBoxModelListDataListeners = new HashSet<ListDataListener>(10);
-        modelEventArray = this.toArray(new Event[super.size()]);
+        modelArray = this.toArray(new Object[super.size()]);
+        headers = new String[0];
+    }
+    
+    public TreeSet_TableModel_ComboBoxModel(String[] Headers)
+    {
+        super();
+        tableBooleanSelection = new boolean[super.size()];
+        tableModelListeners = new HashSet<>(5);
+        comboBoxModelListDataListeners = new HashSet<ListDataListener>(10);
+        modelArray = this.toArray(new Object[super.size()]);
+        headers = Headers;
     }
     
     static 
@@ -49,15 +62,15 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
      * 
      * Model is saved to file after Event is added
      * 
-     * @param e the event to be added to this implementation
+     * @param o the event to be added to this implementation
      * @return true if item successfully added (TreeSet parent class' add
      * function returns true). False otherwise.
      */
     @Override
-    public boolean add(Event e)  //Modify to take in Authenication ID for future logging function
+    public boolean add(T1 o)  //Modify to take in Authenication ID for future logging function
     {
-        if(super.add(e)) {
-            comboBoxModelSelectedItem = e;
+        if(super.add(o)) {
+            comboBoxModelSelectedItem = o;
             modelListenersNotify();
             ViewerController.saveModel();
             return true;
@@ -65,8 +78,17 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         return false;
     }
     
+    public void updateBoolean(boolean[] bools)
+    {
+        if(bools.length == size()) {
+            tableBooleanSelection = bools;
+            notifyTableModelBooleanChange();
+        }
+    }
+    
+    
     /**
-     * Utilizes TreeSet parent's add function. If it returns true, item is 
+     * Utilizes TreeSet parent's remove function. If it returns true, item is 
      * removed and, if item is selected in combobox model, selected model is 
      * updated to first item if size > 0, null otherwise.
      * 
@@ -101,7 +123,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
      */
 
     @Override
-    public boolean addAll(Collection<? extends Event> c) //Modify to take in Authenication ID for future logging function
+    public boolean addAll(Collection<? extends T1> c) //Modify to take in Authenication ID for future logging function
     {
         if(super.addAll(c)){
             comboBoxModelSelectedItem = this.first();
@@ -131,7 +153,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
 
     private void modelListenersNotify()
     {
-        modelEventArray = this.toArray(new Event[this.size()]);
+        modelArray = this.toArray(new Object[this.size()]);
         notifyTableModelChange();
         notifyComboBoxModelChange(0, this.size()-1);
     }
@@ -144,7 +166,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
 
     private void modelListenersNotify(int index0, int index1)
     {
-        modelEventArray = this.toArray(new Event[this.size()]);
+        modelArray = this.toArray(new Object[this.size()]);
         notifyTableModelChange(index0, index1);
         notifyComboBoxModelChange(index0, index1);
 
@@ -179,6 +201,12 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         for(TableModelListener t : tableModelListeners)
             t.tableChanged(new TableModelEvent(this, index0, index1));
     }
+    
+    private void notifyTableModelBooleanChange()
+    {
+        for(TableModelListener t : tableModelListeners)
+            t.tableChanged(new TableModelEvent(this));
+    }
 
     @Override
     public int getRowCount() {
@@ -207,9 +235,7 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
 
     @Override
     public boolean isCellEditable(int rowIndex, int columnIndex) {
-        if (columnIndex != 0)
-            return false;
-        return true;
+        return columnIndex == 0;
     }
 
     @Override
@@ -221,18 +247,8 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
         {
             case 0:
                 return tableBooleanSelection[rowIndex];
-            case 1:
-                return modelEventArray[rowIndex].getShortDate() + " " + modelEventArray[rowIndex].getTime();
-            case 2:
-                return modelEventArray[rowIndex].getName();
-            case 3:
-                return modelEventArray[rowIndex].getAttendees().size();
-            case 4:
-                return modelEventArray[rowIndex].getWaitinglist().size();
-            case 5:
-                return modelEventArray[rowIndex];
             default:
-                return null;
+                return ((T1)modelArray[rowIndex]).getColumn(columnIndex);
         }
     }
 
@@ -283,9 +299,9 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
     }
 
     @Override
-    public Event getElementAt(int index) {
-        if(index < modelEventArray.length)
-            return modelEventArray[index];
+    public T1 getElementAt(int index) {
+        if(index < modelArray.length)
+            return (T1)modelArray[index];
         return null;
     }
 
@@ -297,6 +313,10 @@ public class EventTreeSet_TableModel_ComboBoxModel extends TreeSet<Event> implem
     @Override
     public void removeListDataListener(ListDataListener l) {
         comboBoxModelListDataListeners.remove(l);
+    }
+    
+    public interface TableModel_ComboModel_Interface{
+        public Object getColumn(int i);
     }
 
 }

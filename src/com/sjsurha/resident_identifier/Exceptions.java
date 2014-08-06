@@ -15,14 +15,14 @@ public class Exceptions {
 
         /**
          * Creates a new instance of
-         * <code>CEAuthenticationFailedException</code> without detail message.
+         * <code>CEUnpermittedBuildingException</code> without detail message.
          */
         public CEAuthenticationFailedException() {
         }
 
         /**
          * Constructs an instance of
-         * <code>CEAuthenticationFailedException</code> with the specified detail
+         * <code>CEUnpermittedBuildingException</code> with the specified detail
          * message.
          *
          * @param msg the detail message.
@@ -130,6 +130,10 @@ public class Exceptions {
 
     public static class CENonResidentException extends Exception {
 
+        static Exception CEUnpermittedBuildingException() {
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
         /**
          *
          */
@@ -152,6 +156,36 @@ public class Exceptions {
          */
         public CENonResidentException(String message, Throwable throwable) {
             super(message, throwable);
+        }
+        
+        public static class CEUnpermittedBuildingException extends Exception {
+
+            /**
+             * Creates a new instance of
+             * <code>CEUnpermittedBuildingException</code> without detail message.
+             */
+            public CEUnpermittedBuildingException() {
+            }
+
+            /**
+             * Constructs an instance of
+             * <code>CEUnpermittedBuildingException</code> with the specified detail
+             * message.
+             *
+             * @param msg the detail message.
+             */
+            public CEUnpermittedBuildingException(String msg) {
+                super(msg);
+            }
+
+            /**
+             *
+             * @param message
+             * @param throwable
+             */
+            public CEUnpermittedBuildingException(String message, Throwable throwable) {
+                super(message, throwable);
+            }
         }
 
     }
