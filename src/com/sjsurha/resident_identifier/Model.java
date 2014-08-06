@@ -929,11 +929,24 @@ public final class Model implements Serializable{
             tickets = new HashMap<>();
             eventBuildings = new TreeMap<>();
             
-            if(acceptedBuildings != null)
+            if(acceptedBuildings != null && acceptedBuildings.length>0)
                 for(Building b : acceptedBuildings){
                     eventBuildings.put(b, 0);
                 }
+            else {
+                buildBuildings();
+            }
         };
+        
+        private void buildBuildings()
+        {
+            if(eventBuildings == null)
+                eventBuildings = new TreeMap<>();
+            for(Iterator<Building> itr = buildings.iterator(); itr.hasNext(); )
+            {
+                eventBuildings.put(itr.next(), 0);
+            }
+        }
         
         public boolean isBuilding(Building building)
         {
@@ -1036,7 +1049,10 @@ public final class Model implements Serializable{
         {
             attendees.put(ID, new GregorianCalendar());
             Building b = extractBuilding(ID);
-            eventBuildings.put(b, eventBuildings.get(b)+1);
+            if(eventBuildings.containsKey(b))
+                eventBuildings.put(b, eventBuildings.get(b)+1);
+            else
+                eventBuildings.put(b, 0);
             return true;
         }
 
@@ -1044,7 +1060,10 @@ public final class Model implements Serializable{
         {     
             waitinglist.put(ID, new GregorianCalendar());
             Building b = extractBuilding(ID);
-            eventBuildings.put(b, eventBuildings.get(b)+1);
+            if(eventBuildings.containsKey(b))
+                eventBuildings.put(b, eventBuildings.get(b)+1);
+            else
+                eventBuildings.put(b, 0);
             return true;
         }
 
