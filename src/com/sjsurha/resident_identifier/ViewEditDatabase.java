@@ -305,7 +305,7 @@ public final class ViewEditDatabase extends JPanel
                 if(!model.authenticationPopup(LogEntry.Level.Administrator, "View Log"))
                     return;
                 
-                String[] ColumnHeaders = {"Date", "User", "Level", "Result", "Message",};
+                String[] ColumnHeaders = {"Date (Year\\Month\\Day Time)", "User", "Level", "Result", "Message",};
                 String[][] RowData = model.getLogData();
                 
                 JTable logTable = new JTable(RowData, ColumnHeaders){ 

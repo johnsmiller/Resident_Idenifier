@@ -115,7 +115,18 @@ public final class ViewEditEvent extends JPanel
     private void updateFields()
     {       
         if(eventCombobox.getItemCount()==0 || eventCombobox.getSelectedItem()==null)
+        {
+            name.setText("");//Clear Event Name
+            //Clear Event Date
+            //Clear Event Time
+            maxParticipants.setText("");//Clear Max Participant
+            TableModel tableModel = allowedBuildings.getModel();
+            for(int i = 0; i < tableModel.getRowCount(); i++)
+            {
+                tableModel.setValueAt(true, i, 0);
+            }//Set All Buildings to True
             return;
+        }
         
         Model.Event event = (Model.Event)eventCombobox.getSelectedItem();
         

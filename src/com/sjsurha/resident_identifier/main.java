@@ -53,8 +53,8 @@ public class main {
  *  - MergeDatabase needs revisiting. (more options & thoughtfulness towards behavior)
  * 
  *  - In ViewEditDatabase, JFileChooser in mergeActionListener is causing thread exceptions under certain conditions
- *      Status: Benign / Java Source COde Error
- *      Conditions: Start program, click merge database, exit window, exit program
+ *      Status: Benign / Java Source Code Error
+ *      Conditions: Start program, click merge database, authenticate, exit browse window, exit program
  *      Exception message: Exception while removing reference
  *      Implications: Does not appear to affect seal function. No other indications of bad behavior
  *      Notes: Research indicates this is a thread bug in JFileChooser class

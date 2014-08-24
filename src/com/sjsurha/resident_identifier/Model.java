@@ -12,6 +12,7 @@ import java.io.FileNotFoundException;
 import java.io.Serializable;
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -126,8 +127,8 @@ public final class Model implements Serializable{
      * By contrast, duplicate residents are imported and replace the importing 
      * database's records
      * 
-     * In future versions of this function, all records will be kept (conflicting 
-     * Events will be merged and the most recently imported resident will be kept)
+     * In future versions of this function, conflicting 
+     * Events will be merged and the most recently imported resident will be kept
      * 
      * 
      * @param modelIn the decrypted model to be imported
@@ -140,6 +141,20 @@ public final class Model implements Serializable{
     {
         if(modelIn == null)
             return;
+        
+        //Use modelIn.authenticationPopup(LogEntry.Level.Administrator, "Merging this database into another")
+        JOptionPane.showMessageDialog(null, "Please provide authentication details for an admin from the previous database on the next screen", "Merging Database Authentication", JOptionPane.INFORMATION_MESSAGE);
+        if(!modelIn.authenticationPopup(LogEntry.Level.Administrator, "Merging this database into another"))
+        {
+            JOptionPane.showMessageDialog(null, "Error: the database to be merged did not recognize that administrator. Merge cannot continue", "Merge Database Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        JOptionPane.showMessageDialog(null, "Please provide authentication details for an Admin of THIS database on the next screen", "Current Database Authentication", JOptionPane.INFORMATION_MESSAGE);
+        if(!authenticationPopup(LogEntry.Level.Administrator, "Merging another database into this one"))
+        {
+            return;
+        }
         
         if(importAdmins)
         {
@@ -856,11 +871,13 @@ public final class Model implements Serializable{
     protected String[][] getLogData() {
         //String[] ColumnHeaders = {"Date", "User", "Level", "Result", "Message"};
         String[][] logData = new String[log.size()][5];
+        SimpleDateFormat sdf1 = new SimpleDateFormat();
+        sdf1.applyPattern("yyyy\\MM\\dd HH:mm:ss EEEE");
         
         int i = 0;
         for(LogEntry l : log)
         {
-            logData[i][0] = l.getTime().getTime().toString();
+            logData[i][0] = sdf1.format(l.getTime().getTime());
             logData[i][1] = l.getID();
             logData[i][2] = l.getLevel().toString();
             logData[i][3] = l.getResult().toString();
