@@ -7,11 +7,6 @@ to check-in Residents at Housing Events
 
 Credit will be given where credit is due. Open-GNU licensing is a little daunting, but I will credit all projects used in this, including (not limited to):
 
-poi-3.9
-
 jcalendar
 
-itextpdf
-
-
-None of my work may be used without my express permission, via written document. This github repository is for my personal use only and those whom I wish to share my project with
+None of this work may be used without my express permission, via written document. This github repository is for my personal use and those whom I wish to share this project with
