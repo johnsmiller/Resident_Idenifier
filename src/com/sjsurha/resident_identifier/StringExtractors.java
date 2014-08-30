@@ -6,6 +6,8 @@
 
 package com.sjsurha.resident_identifier;
 
+import java.util.ArrayList;
+
 /**
  *
  * @author John
@@ -33,12 +35,12 @@ public class StringExtractors {
          * Null returns should be expected, especially if there are multiple 
          * types of inputs used for reading. 
          * 
-         * Input string should not modified by this function. 
+         * Input string should not modified by this function. --No duh, strings in Java don't get modified, just copied
          * 
          * Input string may be null.
          * 
          * @param inputString the string to apply this extractor's rules to and 
-         * attempt to return a valid string. Not modified by this function
+         * attempt to return a valid string. 
          * @return the extracted string or null if this function's rules failed.
          */
         public String extractString(String inputString);
@@ -64,7 +66,13 @@ public class StringExtractors {
          * 
          * @param cse CustomStringExtractor to add as child
          */
-        public void addSubExtractor(CustomStringExtractor cse);
+        public void addChildExtractor(CustomStringExtractor cse);
+        
+        /**
+         * removes the nth child in the CustomStringExtractor ArrayList
+         * @param index the child at index (starting at 0) to be removed
+         */
+        public void removeChildExtractor(int index);
         
         /**
          * Returns human-friendly name of extractor
@@ -92,6 +100,12 @@ public class StringExtractors {
      *  - No modification
      *      - Used only to detect if a string contains another string. Most 
      *          likely to be paired with sub-children
+     *  - Behavior when string doesn't exist
+     *      - Return null. Include instructions that "" == all strings.
+     *  - Behavior with leading & trailing spaces?
+     *      - research/test & note on setup screen
+     *  - Attempting to remove more occurrences than exist in a string will result 
+     *      in a null return
      * Detection options: 
      *      - first
      *      - nth
@@ -101,81 +115,212 @@ public class StringExtractors {
     
     public class nthOccurrence implements CustomStringExtractor
     {
-        boolean removeTextBefore;
-        boolean removeTextAfter;
-        boolean removeOccurance;
+        private boolean removeTextBefore;
+        private boolean removeTextAfter;
+        private boolean removeOccurance;
         
-        boolean detectFirst;
-        boolean detectLast;
-        boolean detectAll;
-        int detectNth; //If greater than 0, treated as true
+        private boolean detectFirst;
+        private boolean detectLast;
+        private boolean detectAll;
+        private int detectNth; //If greater than 0, treated as true
         
-        String occ;
+        private String occ;
+        private String name;
         
-        public nthOccurrence()
+        private ArrayList<CustomStringExtractor> children;
+        
+        public nthOccurrence(String Name)
         {
+            name = Name;
+            children = new ArrayList<>();
             detectNth = -1;
         }
-
+        
         @Override
-        public boolean showSetUpDialog() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        public void addChildExtractor(CustomStringExtractor cse) {
+            children.add(cse);
         }
 
         @Override
-        public String extractString(String inputString) {
-            String ret = "";
+        public String getExtractorName() {
+            return name;
+        }
+
+        @Override
+        public void setExtractorName(String Name) {
+            name = Name;
+        }
+
+        @Override
+        public void removeChildExtractor(int index) {
+            if(index >= 0 && index < children.size())
+                children.remove(index);
+        }
+        
+        
+        @Override
+        public boolean showSetUpDialog() {
+            //JTextBox for string
+            //Detect
+                //All (JRadioButton) (clicking deselects all other detect options
+                //first (checkbox)
+                //last (checkbox)
+                //nth (checkbox)
+            //Behavior
+                //remove all text before (checkbox)
+                //remove the string itself (checkbox)
+                //remove all text after (checkbox)
+                //Do nothing. Use this to pass the string unmodified (will be passed to any existing children before returning) (JRadioButton) (Deselect all others if selected)
+            return false;
+        }
+
+        @Override
+        public String extractString(String inputString) { 
             
             if(detectAll)
             {
-                ret = detectAllOcc(inputString);
-                return (ret.equals("")? null : ret);
+                inputString = detectAllOcc(inputString);
+            }
+            else {
+                if(detectNth > 0)
+                {
+                    inputString = detectNthOcc(inputString);
+                }
+                
+                if(detectFirst)
+                {
+                    inputString = detectFirstOcc(inputString);
+                }
+
+                if(detectLast)
+                {
+                    inputString = detectLastOcc(inputString);
+                }
             }
             
-            if(detectFirst)
+            if(children.isEmpty() || inputString == null || inputString.equals(""))
             {
-                
+                return ((inputString == null || inputString.equals(""))? null : inputString);
             }
+            else
+            {
+                String temp;
+                for(CustomStringExtractor c : children)
+                {
+                    temp = c.extractString(inputString);
+                    if(temp != null)
+                        return temp;
+                }
+                return null;
+            }
+            
+        }
+        
+        private String detectNthOcc(String str)
+        {
+            String ret = "";
+            int curIndex = 0;
+            for(int i = 0; i < detectNth && curIndex != -1; i++)
+            {
+                curIndex = str.indexOf(occ, curIndex)+1;
+            }
+            if(curIndex == -1)
+            {
+                return null;
+            }
+            
+            curIndex--;
+            
+            if(!removeTextBefore)
+            {
+                ret += str.substring(0, curIndex);
+            }
+            
+            if(!removeOccurance)
+            {
+                ret += occ;
+            }
+            
+            if(!removeTextAfter)
+            {
+                ret += str.substring(curIndex+occ.length());
+            }
+            
+            return ret;
         }
         
         private String detectAllOcc(String str)
         {
-            String[] strs = str.split(occ);
+            String[] strs;
             String ret = "";
+            
+            if(str == null || (strs = str.split(occ)).length <= 1)
+            {
+                return null;
+            }
+            
             for(int i = 0; i < strs.length; i++)
             {
-                if(removeTextBefore)
-                    if(i != strs.length-1)
-                        strs[i] = "";
-                if(removeTextAfter)
-                    if(i != 0)
-                        strs[i] = "";
-                ret = ret + strs[i] + ((removeOccurance)? "" : occ);
+                if(removeTextBefore && i != strs.length-1)
+                    strs[i] = "";
+                if(removeTextAfter && i != 0)
+                    strs[i] = "";
+                ret += strs[i] + ((!removeOccurance)? occ : "");
             }
             return ret;
         }
         
         private String detectFirstOcc(String str)
         {
-            int occur = str.indexOf(occ);
+            int occur;
+            String ret = "";
             
-        }
-
-        @Override
-        public void addSubExtractor(CustomStringExtractor cse) {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
-
-        @Override
-        public String getExtractorName() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-        }
-
-        @Override
-        public void setExtractorName(String name) {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            if(str == null || (occur = str.indexOf(occ)) == -1)
+            {
+                return null;
+            }
+            
+            if(!removeTextBefore)
+            {
+                ret += str.substring(0, occur);
+            }
+            if(!removeOccurance)
+            {
+                ret += occ;
+            }
+            if(!removeTextAfter)
+            {
+                ret += str.substring(occur+occ.length());
+            }
+            
+            return ret;
         }
         
+        private String detectLastOcc(String str)
+        {
+            int occur;
+            String ret = "";
+            
+            if(str == null || (occur = str.lastIndexOf(occ)) == -1)
+            {
+                return null;
+            }
+            
+            if(!removeTextBefore)
+            {
+                ret += str.substring(0, occur);
+            }
+            if(!removeOccurance)
+            {
+                ret += occ;
+            }
+            if(!removeTextAfter)
+            {
+                ret += str.substring(occur+occ.length());
+            }
+            
+            return ret;
+        }        
     }
     
     /**
@@ -207,7 +352,7 @@ public class StringExtractors {
         }
 
         @Override
-        public void addSubExtractor(CustomStringExtractor cse) {
+        public void addChildExtractor(CustomStringExtractor cse) {
             throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
 
@@ -219,6 +364,52 @@ public class StringExtractors {
         @Override
         public void setExtractorName(String name) {
             throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        @Override
+        public void removeChildExtractor(int index) {
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+        
+        public class checkRawInput implements CustomStringExtractor
+        {
+            private final String name = "Don't Modify Input"; //better name!
+            
+            public checkRawInput()
+            {
+                
+            }
+
+            @Override
+            public boolean showSetUpDialog() {
+                return true;
+            }
+
+            @Override
+            public String extractString(String inputString) {
+                return inputString;
+            }
+
+            @Override
+            public void addChildExtractor(CustomStringExtractor cse) {
+                return;
+            }
+
+            @Override
+            public void removeChildExtractor(int index) {
+                return;
+            }
+
+            @Override
+            public String getExtractorName() {
+                return name;
+            }
+
+            @Override
+            public void setExtractorName(String name) {
+                return;
+            }
+            
         }
         
     }
