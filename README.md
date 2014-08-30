@@ -9,4 +9,6 @@ Credit will be given where credit is due. Open-GNU licensing is a little dauntin
 
 jcalendar
 
-None of this work may be used without my express permission, via written document. This github repository is for my personal use and those whom I wish to share this project with
+At this point, I'd appreciate it if no uses of this project were made until I can properly credit and follow the license requirements of the projects utilized for this project. 
+
+A proper readme and user manual will be available when this project is ready for distribution.
