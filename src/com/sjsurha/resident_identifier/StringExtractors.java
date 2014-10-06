@@ -7,6 +7,8 @@
 package com.sjsurha.resident_identifier;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+
 
 /**
  *
@@ -67,6 +69,12 @@ public class StringExtractors {
          * @param cse CustomStringExtractor to add as child
          */
         public void addChildExtractor(CustomStringExtractor cse);
+        
+        /**
+         * Returns the private arraylist containing the children extractors
+         * @return the children extractors
+         */
+        public ArrayList<CustomStringExtractor> getChildrenExtractors();
         
         /**
          * removes the nth child in the CustomStringExtractor ArrayList
@@ -321,6 +329,11 @@ public class StringExtractors {
             
             return ret;
         }        
+
+        @Override
+        public ArrayList<CustomStringExtractor> getChildrenExtractors() {
+            return children;
+        }
     }
     
     /**
@@ -332,6 +345,7 @@ public class StringExtractors {
      *  - No modification
      *      - Used only to detect if a string is a specific length. Most 
      *          likely to be paired with sub-children
+     *  - replacement/greater than/less than provisions?
      * 
      * Detection options
      *  - if String is (int) length1 OR (int) length2 OR ...
@@ -340,10 +354,26 @@ public class StringExtractors {
     
     public class lengthOccurance implements CustomStringExtractor
     {
+        private int greaterThan;
+        private int lessThan;
+        private HashSet<Integer> notEqualTo;
+        private HashSet<Integer> equalTo;
+        
 
         @Override
         public boolean showSetUpDialog() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            //Detection Options
+                //If string length is (Length1) OR if string length is (Length 2) OR...
+                //or
+                //If string length is not (Length1) AND not (length2), AND not...
+                //and/or
+                //greater/less than provisions????
+            
+            //behavior
+                //remove n characters from beginning (replace??)
+                //remove characters i to j (inclusive??) (replace text??)
+                //remove n characters from the end (replace??)
+            return false;
         }
 
         @Override
@@ -368,6 +398,11 @@ public class StringExtractors {
 
         @Override
         public void removeChildExtractor(int index) {
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        @Override
+        public ArrayList<CustomStringExtractor> getChildrenExtractors() {
             throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
         }
         
@@ -408,6 +443,11 @@ public class StringExtractors {
             @Override
             public void setExtractorName(String name) {
                 return;
+            }
+
+            @Override
+            public ArrayList<CustomStringExtractor> getChildrenExtractors() {
+                throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
             }
             
         }

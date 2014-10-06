@@ -54,17 +54,17 @@ public final class ViewResidentDetails extends JPanel
                     textArea.setText("Invalid Card");
                     return;
                 }
-                if(!model.authenticationPopup(LogEntry.Level.Administrator, "Check Resident Activity: " + ID))
+                if(!model.authenticationModule(LogEntry.Level.Administrator, "Check Resident Activity: " + ID))
                 {
                     return;
                 }
                 if(model.checkResident(ID)){
-                    TreeSet<Model.Event> attended = model.getAttendedEvents(ID);
+                    TreeSet<Event> attended = model.getAttendedEvents(ID);
                     if(attended.isEmpty())
                         textArea.setText("Is resident\nNo event records");
                     else {
                         String message = "Is resident. Attended following events:";
-                        for(Model.Event ev : attended)
+                        for(Event ev : attended)
                             message += "\n\t" + ev.getName() + " " + ev.getLongDate() + " " + ev.getTime();
                         textArea.setText(message);
                     }

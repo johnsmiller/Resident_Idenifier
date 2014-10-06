@@ -128,7 +128,7 @@ public final class ViewEditEvent extends JPanel
             return;
         }
         
-        Model.Event event = (Model.Event)eventCombobox.getSelectedItem();
+        Event event = (Event)eventCombobox.getSelectedItem();
         
         name.setText(event.getName());
 
@@ -142,7 +142,7 @@ public final class ViewEditEvent extends JPanel
         TableModel tableModel = allowedBuildings.getModel();
         for(int i = 0; i < tableModel.getRowCount(); i++)
         {
-            if(event.isBuilding((Model.Building)tableModel.getValueAt(i, 1)))
+            if(event.isBuilding((Building)tableModel.getValueAt(i, 1)))
             {
                 tableModel.setValueAt(true, i, 0);
             }
@@ -191,7 +191,7 @@ public final class ViewEditEvent extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                    Model.Event event = (Model.Event)eventCombobox.getSelectedItem();
+                    Event event = (Event)eventCombobox.getSelectedItem();
                     GregorianCalendar tempDate = new GregorianCalendar();
                     tempDate.setTime(dateChooser.getDate()); //IF NULL??????
                     tempDate.set(Calendar.HOUR_OF_DAY, hour.getSelectedIndex());
@@ -220,7 +220,7 @@ public final class ViewEditEvent extends JPanel
                         JOptionPane.showMessageDialog(null, "Error: Event not found", "Event edit error", JOptionPane.ERROR_MESSAGE);
                     }else if(JOptionPane.showConfirmDialog(null, message)!=JOptionPane.YES_OPTION){
                         return;
-                    } else if(!model.authenticationPopup(LogEntry.Level.User, "Event updated: " + event.Get_Details())) {
+                    } else if(!model.authenticationModule(LogEntry.Level.User, "Event updated: " + event.Get_Details())) {
                         JOptionPane.showMessageDialog(null, "Authentication Failed", "Event edit Error", JOptionPane.ERROR_MESSAGE);
                     } else{
                         int newMaxParticipants = event.getMaxParticipants();
@@ -250,7 +250,7 @@ public final class ViewEditEvent extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                Model.Event event = (Model.Event)eventCombobox.getSelectedItem();
+                Event event = (Event)eventCombobox.getSelectedItem();
                 if(event == null)
                 {
                     JOptionPane.showMessageDialog(null, "No Event Selected", "Remove Error", JOptionPane.ERROR_MESSAGE);
@@ -259,9 +259,9 @@ public final class ViewEditEvent extends JPanel
                 String ID = ViewerController.extractID((String)JOptionPane.showInputDialog(null,"Enter ID to be Removed", "Remove resident from event", JOptionPane.QUESTION_MESSAGE));
                 if(ID == null || !(event.isAttendee(ID) || event.isWaitlisted(ID))) {
                     JOptionPane.showMessageDialog(null, "Invalid ID", "Remove Error", JOptionPane.ERROR_MESSAGE);
-                } else if(!model.authenticationPopup(LogEntry.Level.Administrator, "Remove Attendee: " + ID)){
+                } else if(!model.authenticationModule(LogEntry.Level.Administrator, "Remove Attendee: " + ID)){
                     JOptionPane.showMessageDialog(null, "Admin Authentication Failed", "Remove Error", JOptionPane.ERROR_MESSAGE);
-                } else if(!event.removeParticipant(ID)) {
+                } else if(!event.removeParticipant(ID, model)) {
                     JOptionPane.showMessageDialog(null, "Resident not removed", "Remove Error", JOptionPane.ERROR_MESSAGE);
                 } else {
                     JOptionPane.showMessageDialog(null, "Resident succesfully removed");
@@ -276,9 +276,12 @@ public final class ViewEditEvent extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                Model.Event event = (Model.Event)eventCombobox.getSelectedItem();
-                if(model.ContainsEvent(event) && model.authenticationPopup(LogEntry.Level.Administrator, "Delete Event: " + event.toString())){
-                    if(JOptionPane.showConfirmDialog(null, event.getName() + " on " + event.getShortDate() + " " + event.getTime() + " will be deleted. Continue?")==JOptionPane.YES_OPTION){
+                Event event = (Event)eventCombobox.getSelectedItem();
+                if(model.ContainsEvent(event)){
+                    if(JOptionPane.showConfirmDialog(null, event.getName() + 
+                            " on " + event.getShortDate() + " " + event.getTime() 
+                            + " will be deleted. Continue?")==JOptionPane.YES_OPTION)
+                    {
                         model.removeEvent(event);
                         eventCombobox.repaint();
                     }

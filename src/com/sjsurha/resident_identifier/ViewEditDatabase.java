@@ -122,7 +122,7 @@ public final class ViewEditDatabase extends JPanel
 
     private void updateText()
     {
-        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.adminCount() + "\nNumber of Users in Database: " + model.userCount() + "\nNumber of Residents in Database: " + model.residentCount() + "\nNumber of Buildings in Database: " + model.buildingCount());
+        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.powerUserCount(LogEntry.Level.Administrator) + "\nNumber of Users in Database: " + model.powerUserCount(LogEntry.Level.User) + "\nNumber of Residents in Database: " + model.residentCount() + "\nNumber of Buildings in Database: " + model.buildingCount());
     }
 
     private ActionListener importActionListener()
@@ -131,7 +131,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(model.authenticationPopup(LogEntry.Level.Administrator, "Import Residents via CSV file")){
+                if(model.authenticationModule(LogEntry.Level.Administrator, "Import Residents via CSV file")){
                     model.csvImport();
                     updateText();
                 }
@@ -168,7 +168,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserCreationPopup(LogEntry.Level.Administrator);
+                model.powerUserCreation(LogEntry.Level.Administrator);
                 updateText();
             }
         };
@@ -180,7 +180,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserRemovalPopup(LogEntry.Level.Administrator);
+                model.powerUserRemoval(LogEntry.Level.Administrator);
                 updateText();
             }
         };
@@ -192,7 +192,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserCreationPopup(LogEntry.Level.User);
+                model.powerUserCreation(LogEntry.Level.User);
                 updateText();
             }
         };
@@ -204,7 +204,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserRemovalPopup(LogEntry.Level.User);
+                model.powerUserRemoval(LogEntry.Level.User);
                 updateText();
             }
         };
@@ -302,7 +302,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(!model.authenticationPopup(LogEntry.Level.Administrator, "View Log"))
+                if(!model.authenticationModule(LogEntry.Level.Administrator, "View Log"))
                     return;
                 
                 String[] ColumnHeaders = {"Date (Year\\Month\\Day Time)", "User", "Level", "Result", "Message",};

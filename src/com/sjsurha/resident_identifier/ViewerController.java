@@ -2,8 +2,6 @@ package com.sjsurha.resident_identifier;
 
 import com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedException;
 import com.sjsurha.resident_identifier.Exceptions.CEEncryptionErrorException;
-import java.awt.Color;
-import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -53,7 +51,7 @@ public final class ViewerController implements Runnable{
     private static SealObject sealer; //Object containing current session's password & encryption methods
     private final int AUTOSAVE_DURATION = 120 * 1000; //Time in miliseconds that the program automatically saves the edited model
     
-    protected final static String SEALED_MODEL_FILE_NAME = "sealedModel0.ser"; //Name of local encrypted database. Used for unsealing/sealing/autosaving
+    public final static String SEALED_MODEL_FILE_NAME = "sealedModel0.ser"; //Name of local encrypted database. Used for unsealing/sealing/autosaving
     //Stored, public program variables
     //Global Variables for ViewPanes
     protected final static Dimension JTablePopUpSize = new Dimension(600, 400);
@@ -68,8 +66,8 @@ public final class ViewerController implements Runnable{
         try {
             sealer = initializeSealedObject(null);
             model = unseal(SEALED_MODEL_FILE_NAME, sealer);
-        } catch (FileNotFoundException ex) {
-                model = new Model();
+        } catch (FileNotFoundException | NullPointerException ex ) {
+            model = new Model();
         } finally {
             autosaveThread();
             //model.importEvents();
@@ -107,6 +105,7 @@ public final class ViewerController implements Runnable{
             throw new CEEncryptionErrorException("Bad decryption password from user");
         }
     }
+    
     
     public static ActionListener switchJTextComponent(final JTextComponent obj1, final JTextComponent obj2, final boolean validateID)
     {
@@ -221,7 +220,6 @@ public final class ViewerController implements Runnable{
      */
     protected static synchronized final Model unseal(File file, SealObject sealerIn) throws FileNotFoundException, CEEncryptionErrorException
     {
-
         try (ObjectInputStream input = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
             return sealerIn.decrypt((SealedObject)input.readObject());
         } catch(ClassNotFoundException | IOException ex){
@@ -280,7 +278,7 @@ public final class ViewerController implements Runnable{
             return null;
     }
     
-    protected static int[] getTimeDifference(GregorianCalendar start, GregorianCalendar stop)
+    public static int[] getTimeDifference(GregorianCalendar start, GregorianCalendar stop)
     {
         if(start.compareTo(stop)>0){
             GregorianCalendar temp = start;
@@ -344,19 +342,27 @@ public final class ViewerController implements Runnable{
         return ret;
     }
     
-    protected static Model.Building[] getBuildings(JTable buildingsJTable)
+    protected static Building[] getBuildings(JTable buildingsJTable)
     {
         TableModel tableModel = buildingsJTable.getModel();
         
-        ArrayList<Model.Building> ret = new ArrayList();
+        ArrayList<Building> ret = new ArrayList();
         
         for(int i = 0; i < tableModel.getRowCount(); i++)
         {
             if((boolean)tableModel.getValueAt(i, 0))
-                ret.add((Model.Building)tableModel.getValueAt(i, 1));
+                ret.add((Building)tableModel.getValueAt(i, 1));
         }
         
-        return ret.toArray(new Model.Building[ret.size()]);
+        if(ret.isEmpty())
+        {
+            for(int i = 0; i < tableModel.getRowCount(); i++)
+            {
+                ret.add((Building)tableModel.getValueAt(i, 1));
+            }
+        }
+        
+        return ret.toArray(new Building[ret.size()]);
     }
     
     /**

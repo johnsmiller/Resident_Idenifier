@@ -79,8 +79,8 @@ public final class ViewCreateEvent extends JPanel
         scroll_restrict_buildings.setPreferredSize(new Dimension(50, 150)); //MAGIC NUMBERS
 
         submit_button = new JButton("Submit");
-        submit_button.addActionListener(Submit_ActionListener(hour, minute));            
-
+        submit_button.addActionListener(Submit_ActionListener(hour, minute));
+        name_textfield.addActionListener(Submit_ActionListener(hour, minute));
 
         JPanel left_panel = new JPanel();
         left_panel.setLayout(new BoxLayout(left_panel, BoxLayout.Y_AXIS));
@@ -127,7 +127,7 @@ public final class ViewCreateEvent extends JPanel
                 try{ max_partic_int = Integer.parseInt(max_partic_string); } catch (NullPointerException ex){}
                 
                 if(max_partic_int > 0) {
-                    Model.Event temp_event = model.new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings));
+                    Event temp_event = new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings), max_partic_int);
                     if(model.addEvent(temp_event)) {
                         clear();
                     } else
@@ -139,13 +139,13 @@ public final class ViewCreateEvent extends JPanel
                     return;
                 }
                 
-                if (!model.authenticationPopup(LogEntry.Level.User, "New Event: " + name_textfield.getText())){
+                if (!model.authenticationModule(LogEntry.Level.User, "New Event: " + name_textfield.getText())){
                     JOptionPane.showMessageDialog(null, "Authentication Failed. Event not added.", "Authentication Failure", JOptionPane.ERROR_MESSAGE);
                     return;
                 } 
                 
                 else {
-                    Model.Event temp_event = model. new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings)); 
+                    Event temp_event = new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings)); 
                     if(model.addEvent(temp_event)){
                         clear();
                     } else

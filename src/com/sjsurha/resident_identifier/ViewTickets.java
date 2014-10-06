@@ -112,9 +112,9 @@ public final class ViewTickets extends JPanel
                     for(int i = 0; i<eventList.getRowCount(); i++)
                     {
                         if((boolean)eventList.getValueAt(i, 0))
-                            selectedTickets.addAll(((Model.Event)eventList.getModel().getValueAt(i, 5)).getTickets(includeCheckins.isSelected(), includeWaitlist.isSelected()));
+                            selectedTickets.addAll(((Event)eventList.getModel().getValueAt(i, 5)).getTickets(includeCheckins.isSelected(), includeWaitlist.isSelected()));
                     }                     
-                    if(selectedTickets.size()>0 && model.authenticationPopup(LogEntry.Level.User, "Entered Opportunity Drawing Mode")){
+                    if(selectedTickets.size()>0 && model.authenticationModule(LogEntry.Level.User, "Entered Opportunity Drawing Mode")){
                         Random rand = new Random();
                         randomizeArr(selectedTickets, rand);
                         rebuildResidentPane(rand, selectedTickets);
@@ -269,7 +269,7 @@ public final class ViewTickets extends JPanel
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    if(model.authenticationPopup(LogEntry.Level.Administrator, "View Opportunity Drawing Winners' Full Details")){
+                    if(model.authenticationModule(LogEntry.Level.Administrator, "View Opportunity Drawing Winners' Full Details")){
                         String text = "";
                         Iterator<String> itr = winners.iterator();
                         while(itr.hasNext())

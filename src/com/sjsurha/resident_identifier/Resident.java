@@ -1,6 +1,7 @@
 package com.sjsurha.resident_identifier;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public final class Resident implements Serializable{
     private static final long serialVersionUID = 1L;
@@ -91,6 +92,27 @@ public final class Resident implements Serializable{
      */
     public void setBedspace(String bedspace) {
         this.bedspace = bedspace;
+    }
+    
+    @Override
+    public int hashCode()
+    {
+        return id.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (getClass() != obj.getClass()) {
+            return false;
+        }
+        final Resident other = (Resident) obj;
+        if (!Objects.equals(this.id, other.id)) {
+            return false;
+        }
+        return true;
     }
     
     

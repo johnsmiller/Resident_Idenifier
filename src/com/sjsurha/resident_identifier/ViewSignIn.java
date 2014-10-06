@@ -120,9 +120,9 @@ public final class ViewSignIn extends JPanel
                         return;
                     }
                     
-                    Model.Event event = (Model.Event)event_combobox.getSelectedItem();
+                    Event event = (Event)event_combobox.getSelectedItem();
                     
-                    if(event.validAttendee(id, suppressRecheckinPrompt.isSelected())){
+                    if(event.validAttendee(id, model, suppressRecheckinPrompt.isSelected())){
                         setDisplay(model.extractBuilding(id) + " Resident Sign-in Successful", Color.GREEN);
                     }
                 } catch (CEDuplicateAttendeeException ex) { //Why not just extract Exception mssg and save myself all these different exception types?
