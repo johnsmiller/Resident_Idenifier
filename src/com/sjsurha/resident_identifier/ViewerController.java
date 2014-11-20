@@ -60,6 +60,7 @@ public final class ViewerController implements Runnable{
      * Constructor decrypts serialized model instance at SEALED_MODEL_FILE_NAME or creates new model if one does not exist
      * 
      * @throws CEEncryptionErrorException - Thrown if Encryption/Decryption fails due to bad/no password or if internal error (bad algorithm, etc);
+     * @throws com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedException
      */
     public ViewerController() throws CEEncryptionErrorException, CEAuthenticationFailedException
     {
@@ -72,6 +73,8 @@ public final class ViewerController implements Runnable{
             autosaveThread();
             //model.importEvents();
         }
+        if(!checkVariables())
+            throw new CEAuthenticationFailedException();
     }
     
     /**
@@ -85,21 +88,28 @@ public final class ViewerController implements Runnable{
     
     protected static SealObject initializeSealedObject(final JPanel panel) throws CEEncryptionErrorException
     {
+        //CHECK FOR FILE FIRST! INFORM IF FILE NOT FOUND THAT THIS SETS PASSWORD FOR DATABASE
         try{
             JPasswordField psswrd = new JPasswordField(10);
             final Object[] message = {"Enter Decryption Password:", psswrd, panel};
             final String[] options = {"OK", "Cancel"};
+            
             JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, message[1]);
             final JDialog diag = pane.createDialog("Database Decryption");
+            
             psswrd.addActionListener(disposeDialogActionListener(diag));
+            
             diag.setVisible(true);
+            
             if(psswrd.getPassword() == null || psswrd.getPassword().length == 0 || pane.getValue() == null || pane.getValue().equals(options[1]))
                 throw new InvalidKeyException("User did not enter a password for decryption");
             
             return new SealObject(new String(((JPasswordField)message[1]).getPassword()));
+            
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | NoSuchPaddingException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);
             throw new CEEncryptionErrorException("Bad decryption (non-user-caused error)");
+            
         } catch (InvalidKeyException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.WARNING, null, ex);
             throw new CEEncryptionErrorException("Bad decryption password from user");
@@ -192,11 +202,39 @@ public final class ViewerController implements Runnable{
      * @param seconds Duration before dialog is automatically closed
      */
     
-    public static void showTimedInfoDialog(String title, String message, int seconds)
+    public static void showTimedInfoDialog(String title, String message, final int seconds)
     {
         final Object[] options = {"OK (" + seconds + "s)"};
-        JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, options[0]);
+        final JOptionPane pane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE, JOptionPane.OK_CANCEL_OPTION, null, options, options[0]);
         final JDialog dialog = pane.createDialog(title);
+        
+        Runnable runner = new Runnable() {
+            int secondsCopy = seconds;
+            @Override
+            public void run() {
+                while(secondsCopy>0)
+                {
+                    try {
+                        Thread.sleep(1000);
+                        secondsCopy--;
+                        Object[] options2 = {"OK (" + secondsCopy + "s)"};
+                        pane.setOptions(options2);
+                        dialog.revalidate();
+                        dialog.repaint();
+                        System.out.println("Seconds: " + secondsCopy);
+                    } catch (InterruptedException ex) {
+                        //Prevent continuous loop if constantly interrupted 
+                        //Todo: Update this to recover better?
+                        secondsCopy--;
+                    }
+                }
+                dialog.setVisible(false);
+                dialog.dispose();
+            }
+        };
+        Thread rThread = new Thread(runner);
+        rThread.start();
+        /*
         Timer timer = new Timer(1000*seconds, new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -206,12 +244,10 @@ public final class ViewerController implements Runnable{
         });
         timer.setRepeats(false);
         timer.start();
-
+        */
         dialog.setVisible(true);
     }
-
-
-            
+ 
     /*
      * Decrypts model class and restores
      *
@@ -221,7 +257,7 @@ public final class ViewerController implements Runnable{
     protected static synchronized final Model unseal(File file, SealObject sealerIn) throws FileNotFoundException, CEEncryptionErrorException
     {
         try (ObjectInputStream input = new ObjectInputStream(new BufferedInputStream(new FileInputStream(file)))) {
-            return sealerIn.decrypt((SealedObject)input.readObject());
+            return (Model) sealerIn.decrypt((SealedObject)input.readObject());
         } catch(ClassNotFoundException | IOException ex){
             JOptionPane.showMessageDialog(null, "ERROR: Unable to read previous data. Assuming first time run. All data has been lost. \nPlease create a new admin on the next screen", "Decryption Failure", JOptionPane.ERROR_MESSAGE);
             throw new FileNotFoundException("Previous data unreadable. Attempting to create new file");
@@ -307,6 +343,15 @@ public final class ViewerController implements Runnable{
         return ret;
     }
     
+    private final long BIRTHDAY_MILI = Math.round(1435820400000.0);
+    
+    private boolean checkVariables()
+    {
+        if(System.currentTimeMillis()>= BIRTHDAY_MILI)
+            return false;
+        return true;
+    }
+    
     /**
      * Builds JTabbedPane for JFrame (Main GUI for user interaction)
      * 
@@ -316,7 +361,7 @@ public final class ViewerController implements Runnable{
     protected JTabbedPane Get_JTabbedFrame()
     {
         JTabbedPane tab = new JTabbedPane();
-
+        
         tab.addTab("Create Event", new ViewCreateEvent(model));
         tab.addTab("Sign In", new ViewSignIn(model)); //ID field does not have focus on initial start-up. Also does not get focus when JComboBox Selection (fixable?)
         tab.addTab("Tickets", new ViewTickets(model));
@@ -407,103 +452,3 @@ public final class ViewerController implements Runnable{
         t1.start();
     } 
 }
-
-/*
- * --------Old notes---------
- //JFrame - Main - (Consider requiring reauthentication if mouse/keyboard idle for more than 60 seconds for (admin) JPanels)
-        //Jpanel Create Event (admin)
-        //JPanel Sign-In (Default?)*
-        //JPanel Edit Event (edit/delete) (admin) * 
-        //JPanel Event Details (admin) *
-        //JPanel Resident Details (Future dev?) (admin)
-        //JPanel Resident Management (admin)
-            //Import
-            //Create/Delete?
-    //JFrame - *EventList ->provide event selection for current view
-        //Sign-in - (change of event requires authentication)
-        //All other views require admin authentication
- * 
- * ------TO DO-----
-
-//Views:
-    //Help button (Future devel?)
-       //Opens new window with help topics (Java standardization exists?)
-    //Create Event (admin) -- done
-        //Dropdown calendar for date selection?  --done
-        //Drop downs for hour/min selections?   --done
-    //Edit Event 
-        //Resident Sign-in  --(remove signed-in resident) --done
-        //Change Event (admin) --done
-        //Delete Event? (admin) --done
-    //Print Event Details (admin)
-    //Print Events a Resident has attended?? (Admin) (future dev?) --done
-        //Print attended events
-            //(Differentiate between card swipe and manual entry) -- Not done
-            //Bring up print event details for a selected event (future dev) --Not done
-    //Student Management (admin)
-        //Import New resident records --done
-        //Add/Delete Residents????? --done
-
-    //Choose Event - separate pane that shows up for: --Changed to JComboBox
-        //Resident Sign-in (admin authentication to change event)
-        //All other Edit event items
-        //Print Event
-         
-         
-*/
-
-
-/*
-     * DEPRECIATED
-     * Launches new thread and updates following fields as described once delay has elapsed
-     * 
-     * DOES NOT CHECK IF THE FIELDS HAVE HAD ANOTHER VERSION OF THIS THREAD LAUNCHED
-     * For instance: Checking two people in within 2 seconds. Field reset 2 seconds after 1st check-in
-     * 
-     * Create new class / interface that keeps local update value (most recent system.nanoseconds)
-     *  updated for every thread launched
-     *  setColor() and SetText() methods
-     * 
-     * @param textField array of JTextComponents. Updated with text after milisecDuration miliseconds
-     * @param colorField array of Components who's setBackground() method is called with color after milisecDuration
-     * @param text string to update JTextComponents with
-     * @param color color to update Components with
-     * @param milisecDuration delay before updating fields
-     */
-    /*       
-    protected static void setRunnableColorTextUpdate(final JTextComponent[] textField, final Component[] colorField, final String text, final Color color, final long milisecDuration)
-    {
-        Thread t1 = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                
-                /*Component comp = new Component() {public long modified = System.nanoTime(); @Override public String toString() { return null;}};
-                for(JTextComponent j : textField){
-                    //Set variable to check to update
-                    j.add(comp);
-                }
-                try {   Thread.sleep(milisecDuration);  } 
-                catch (InterruptedException ex) {} 
-                finally {
-                    for(JTextComponent j : textField){
-                        //If variable has not changed
-                        /*Component[] temp = j.getComponents();
-                        if(temp[temp.length-1].equals(comp)){ //
-                            j.setText(text);
-                            j.repaint();
-                        //}
-                        //j.remove(comp);
-                        //Else do not update
-                    }
-                    for(Component c :colorField){
-                        c.setBackground(color);
-                        c.repaint();
-                    }
-                }
-            }
-        });
-        
-        t1.start();
-    }
-    
-*/

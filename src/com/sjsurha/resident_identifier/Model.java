@@ -1,21 +1,14 @@
 package com.sjsurha.resident_identifier;
 
 import com.sjsurha.resident_identifier.Exceptions.CEAuthenticationFailedException;
-import java.awt.HeadlessException;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Scanner;
 import java.util.TreeSet;
 import javax.swing.JComboBox;
-import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JTable;
-import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
  * Model class contains student and event information. 
@@ -31,24 +24,10 @@ public final class Model implements Serializable{
     
     //Stored Data Members
     private final Resident_Event_Database residentEventDatabase;
-    private final PowerUser_Database powerUserDatabase;
+    private final PowerUser_Database powerUserDatabase;   
     
-    //CSV import variables
-    private File previous_import_path; //DOESN'T IMPLEMENT SERIALIZABLE
-    private int ID_COLUMN_NUMBER = 0; //Location of SJSU User ID column in excel sheet rows
-    private int FIRST_NAME_COLUMN_NUMBER = 4; //Location of SJSU First Name column in excel sheet rows
-    private int LAST_NAME_COLUMN_NUMBER = 2; //Location of SJSU Last Name column in excel sheet rows
-    private int BEDSPACE_COLUMN_NUMBER = 17; //Location of SJSU Bedspace column in excel sheet rows
-    private boolean leadingZeroFix = true;
-    private final int ID_CELL_LENGTH = 9; //Length of SJSU User ID to locate valid student ID entries
-    private final int SAMPLE_COLUMNS = 30; //Number of columns to pull for user sample
-    private final int SAMPLE_ROWS = 30; //Number of rows to pull for user sample
-    private final int SKIP_ROW_COUNT = 14; //Number of cells to skip before pulling data for user sample
-    private final HashSet<String> INVALID_ID_STRINGS = new HashSet<>(Arrays.asList("CLOSED", "LAST NAME", "SJSU ID"));; //Strings that indicate the current row is not a resident
     
-    public final static String[] EVENT_HEADERS = {"Select", "Event Date", "Event Name", "Attendees", "Waitlisted"};
-    public final static String[] BUIDLING_HEADERS = {"Allowed?", "Building"};
-    public final static String BUILDING_ID_DELIMITER = "-";
+    
     /**
      * 
      * @throws CEAuthenticationFailedException 
@@ -57,8 +36,6 @@ public final class Model implements Serializable{
     {
         residentEventDatabase = new Resident_Event_Database();
         powerUserDatabase = new PowerUser_Database();
-        
-        previous_import_path = null;
         
         if(!powerUserCreation(LogEntry.Level.Administrator)) //Adds an admin to ensure administrative functions are operational at run-time
             throw new CEAuthenticationFailedException("Database requires at least 1 Administrator to function");
@@ -69,9 +46,9 @@ public final class Model implements Serializable{
         Object[] databases = restore(rescued);
         residentEventDatabase = (Resident_Event_Database) databases[0];
         powerUserDatabase = (PowerUser_Database) databases[1];
-        
-        previous_import_path = null;
+
     }
+    
     
     /**
      * Returns true if enough data was restored to allow safe operation of model
@@ -116,6 +93,7 @@ public final class Model implements Serializable{
         
     }
     
+    
     /**
      * Function to import and merge the database with an existing database
      * IMPORTANT: Admins and Events will not import duplicates (thus Events with
@@ -150,14 +128,10 @@ public final class Model implements Serializable{
         }
         
         JOptionPane.showMessageDialog(null, "Please provide authentication details for an Admin of THIS database on the next screen", "Current Database Authentication", JOptionPane.INFORMATION_MESSAGE);
+        
         if(!authenticationModule(LogEntry.Level.Administrator, "Merging another database into this one"))
         {
             return;
-        }
-        
-        if(importAdmins)
-        {
-            powerUserDatabase.importAdmins(modelIn.powerUserDatabase);
         }
         
         if(importEvents)
@@ -168,6 +142,16 @@ public final class Model implements Serializable{
         if(importResidents)
         {
             residentEventDatabase.addAllResidents(modelIn.residentEventDatabase);
+        }
+        
+        if(importAdmins)
+        {
+            powerUserDatabase.importAdmins(modelIn.powerUserDatabase);
+        }
+        
+        if(importUsers)
+        {
+            powerUserDatabase.importUsers(modelIn.powerUserDatabase);
         }
         
         powerUserDatabase.importArchivedLog(modelIn.powerUserDatabase);
@@ -416,136 +400,18 @@ public final class Model implements Serializable{
                 ViewerController.showTimedInfoDialog("Deletion Successful", "Database Deletion Completed", 2);
         }
     }
-    
-    protected void csvImport()
-    {
-        Scanner scanner = null;
-        
-        try {
-            JFileChooser fileChooserGUI = new JFileChooser(); //File Chooser window for user
-            String[] acceptedFileTypes = {"csv"}; //restricts files to .csv files
-            fileChooserGUI.setFileFilter(new FileNameExtensionFilter(null, acceptedFileTypes)); //restrict file types
-            
-            JTable selectorTable; //Table used to display sample of rows/columns
-            Object[][] tableData = new Object[SAMPLE_ROWS][]; //populated with non-empty rows/columns of sample sets
-            Object[] tableHeaders; //Column headers (numbers 1 to # of columns)
-           
-            if(previous_import_path != null && previous_import_path.exists()) //set default fileChooser location to previous location if valid
-                fileChooserGUI.setCurrentDirectory(previous_import_path);
-            
-            if(fileChooserGUI.showOpenDialog(null) != JFileChooser.APPROVE_OPTION //Check for invalid file
-                    || fileChooserGUI.getSelectedFile() == null 
-                    || !fileChooserGUI.getSelectedFile().exists())
-            { return; }
-            
-
-            previous_import_path = fileChooserGUI.getSelectedFile(); //update previous selection location
-            
-            //Get scanner instance
-            scanner = new Scanner(fileChooserGUI.getSelectedFile());
-
-            //Set the delimiter used in file
-            //scanner.useDelimiter(",");
-            for(int i = 0; (scanner.hasNextLine() && i<SAMPLE_ROWS); i++) //populates row & column sets
-            {
-                tableData[i] = scanner.nextLine().split(",");
-            }
-            
-            if(tableData.length < 4)
-            {
-                //error message
-                return;
-            }
-            
-            int numOfColumns = tableData[0].length;
-            
-            tableHeaders = new Object[numOfColumns]; //HAVE TO ASSUME ALL LINES ARE SAME LENGTH
-            
-            for(int i = 0; i<tableHeaders.length; i++) //create table headers
-                tableHeaders[i] = i+1;
-            
-            selectorTable = new JTable(tableData, tableHeaders) { 
-                @Override
-                public boolean isCellEditable(int i, int j)
-                {
-                    return false;
-                }
-            };
-            
-            selectorTable.setPreferredScrollableViewportSize(ViewerController.JTablePopUpSize); //MAGIC NUMBERS
-            selectorTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
-            selectorTable.setFillsViewportHeight(true);
-            
-            int[] temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a user ID");
-            if(temp == null || temp[1] > numOfColumns){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            ID_COLUMN_NUMBER = temp[1];
-            
-            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a LAST name");
-            if(temp == null || temp[1] > numOfColumns){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            LAST_NAME_COLUMN_NUMBER = temp[1];
-            
-            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a FIRST name");
-            if(temp == null || temp[1] > numOfColumns){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            FIRST_NAME_COLUMN_NUMBER = temp[1];
-            
-            temp = ViewerController.jTableDialog(selectorTable, "Please select ONE cell that contains a BedSpace (ex: CVA-000)");
-            if(temp == null || temp[1] > numOfColumns){
-                ViewerController.showTimedInfoDialog("Action Cancelled", "Import Cancelled or Invalid Selection", 3);
-                return;
-            }
-            BEDSPACE_COLUMN_NUMBER = temp[1];
-            
-            scanner.close();
-            
-            scanner = new Scanner(fileChooserGUI.getSelectedFile());
-
-            String[] splitLineStrings;
-            String ID;
-            
-            while(scanner.hasNextLine())
-            {
-                splitLineStrings = scanner.nextLine().split(",");
-                
-                if(splitLineStrings.length >= numOfColumns && !INVALID_ID_STRINGS.contains(splitLineStrings[ID_COLUMN_NUMBER])) {
-                    //Leading '0' fix for SJSU. To be converted to an option under new program settings window
-                    while(leadingZeroFix && splitLineStrings[ID_COLUMN_NUMBER].length()<ID_CELL_LENGTH)
-                        splitLineStrings[ID_COLUMN_NUMBER] = "0" + splitLineStrings[ID_COLUMN_NUMBER];
-                    //Store ID string for readability
-                    ID = splitLineStrings[ID_COLUMN_NUMBER];
-                    //Create new resident 
-                    Resident resident = new Resident(ID, splitLineStrings[FIRST_NAME_COLUMN_NUMBER], splitLineStrings[LAST_NAME_COLUMN_NUMBER], splitLineStrings[BEDSPACE_COLUMN_NUMBER]);
-                    //Save new resident
-                    residentEventDatabase.addResident(resident);
-                    //Update Buildings hashmap. Duplicates are automatically discarded.
-                    extractBuilding(ID);
-                }
-            }
-            
-        }   
-        catch (HeadlessException | FileNotFoundException e) 
-        {
-            JOptionPane.showMessageDialog(null, "An Error Occured while attempting to import."
-                    + "\nPlease check that this is a valid Excel file."
-                    + "\nIt may help to use 'Save As' and create a new excel file to attempt to import from", 
-                    "Internal Error Occured", JOptionPane.ERROR_MESSAGE);
-        }
-        finally
-        {
-            if(scanner != null)
-                scanner.close();
-        }
-    }
 
     protected String[][] getLogData() {
         return powerUserDatabase.getLogData();
+    }
+    
+    protected void csvImport()
+    {
+        HashSet<Resident> newRes = CSV_Import.importCSV(this);
+        for(Resident r : newRes)
+        {
+            residentEventDatabase.addResident(r);
+            residentEventDatabase.extractBuilding(r.getId());
+        }
     }
 }

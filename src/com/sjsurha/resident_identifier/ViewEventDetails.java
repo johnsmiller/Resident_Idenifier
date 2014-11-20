@@ -2,10 +2,12 @@ package com.sjsurha.resident_identifier;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyListener;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
@@ -70,6 +72,17 @@ public final class ViewEventDetails extends JPanel{
         this.add(view_buttons);
         
         repaint();
+    }
+    
+    @Override
+    public void addKeyListener(KeyListener l)
+    {
+        super.addKeyListener(l);
+        for(Component c : this.getComponents())
+            if(c != null){
+                c.setFocusable(true);
+                c.addKeyListener(l);
+            }
     }
 
     @Override
@@ -148,8 +161,10 @@ public final class ViewEventDetails extends JPanel{
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                Event event = (Event) eventCombobox.getSelectedItem();
-                event.ticketWindowPopup(null);
+                if(eventCombobox.getSelectedItem() != null){
+                    Event event = (Event) eventCombobox.getSelectedItem();
+                    event.ticketWindowPopup(null);
+                }
             }
         };
     }
@@ -160,7 +175,7 @@ public final class ViewEventDetails extends JPanel{
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(mssage.getSelectedRow() != -1) {
+                if(mssage.getSelectedRow() != -1 && eventCombobox.getSelectedItem() != null) {
                     Event event = (Event) eventCombobox.getSelectedItem();
                     if(event.ticketWindowPopup((String)mssage.getModel().getValueAt(mssage.getSelectedRow(), idColumn)))
                     {

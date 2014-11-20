@@ -4,6 +4,7 @@ package com.sjsurha.resident_identifier;
 //Used to encrypt/decrypt model class objects
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
@@ -60,7 +61,7 @@ public final class SealObject {
      * @throws IOException
      * @throws IllegalBlockSizeException
      */
-    protected SealedObject encrypt(Model input) throws IOException, IllegalBlockSizeException
+    protected <T extends Serializable> SealedObject encrypt(T input) throws IOException, IllegalBlockSizeException
     {
         return new SealedObject(input, cipher);
     }
@@ -74,9 +75,9 @@ public final class SealObject {
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException
      */
-    protected Model decrypt(SealedObject input) throws IOException, ClassNotFoundException, IllegalBlockSizeException, BadPaddingException
+    protected Object decrypt(SealedObject input) throws IOException, ClassNotFoundException, IllegalBlockSizeException, BadPaddingException
     {
-        return (Model) input.getObject(dcipher);
+        return input.getObject(dcipher);
     }
     
     protected static String encryptPass(String Password)

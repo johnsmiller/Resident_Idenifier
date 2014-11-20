@@ -7,7 +7,6 @@ package com.sjsurha.resident_identifier;
 
 import java.io.Serializable;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.TreeSet;
 import javax.swing.JComboBox;
 import javax.swing.JTable;
@@ -23,10 +22,14 @@ public class Resident_Event_Database implements Serializable{
     private final TreeSet_TableModel_ComboBoxModel<Event> events;
     private final HashMap<String, Resident> residents;
     
+    public final static String[] EVENT_HEADERS = {"Select", "Event Date", "Event Name", "Attendees", "Waitlisted"};
+    public final static String[] BUIDLING_HEADERS = {"Allowed?", "Building"};
+    public final static String BUILDING_ID_DELIMITER = "-";
+    
     public Resident_Event_Database()
     {
-        buildings = new TreeSet_TableModel_ComboBoxModel<>(Model.BUIDLING_HEADERS);
-        events = new TreeSet_TableModel_ComboBoxModel<>(Model.EVENT_HEADERS);
+        buildings = new TreeSet_TableModel_ComboBoxModel<>(BUIDLING_HEADERS);
+        events = new TreeSet_TableModel_ComboBoxModel<>(EVENT_HEADERS);
         residents = new HashMap<>();
     }
     
@@ -69,7 +72,7 @@ public class Resident_Event_Database implements Serializable{
         if(res == null)
             return null;
         
-        int delmiterIndex = (res.getBedspace().contains(Model.BUILDING_ID_DELIMITER))? res.getBedspace().indexOf(Model.BUILDING_ID_DELIMITER) : res.getBedspace().length();
+        int delmiterIndex = (res.getBedspace().contains(BUILDING_ID_DELIMITER))? res.getBedspace().indexOf(BUILDING_ID_DELIMITER) : res.getBedspace().length();
         String building = res.getBedspace().toUpperCase().substring(0, delmiterIndex);
         Building b = new Building(building);
         buildings.add(b);

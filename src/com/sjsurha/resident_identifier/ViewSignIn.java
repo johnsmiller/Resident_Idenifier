@@ -5,10 +5,13 @@ import com.sjsurha.resident_identifier.Exceptions.CEMaximumAttendeesException;
 import com.sjsurha.resident_identifier.Exceptions.CENonResidentException;
 import static com.sjsurha.resident_identifier.Exceptions.CENonResidentException.CEUnpermittedBuildingException;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import javax.swing.BoxLayout;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -47,6 +50,7 @@ public final class ViewSignIn extends JPanel
         idInput.addActionListener(submitActionListener());//submit on enter, Issue with no focus when program first runs
         
         suppressRecheckinPrompt = new JCheckBox("Supress Re-checkin Prompt");
+        suppressRecheckinPrompt.addKeyListener(getKeyListener());
         
         final JPanel checkinPane = new JPanel();
         checkinPane.add(idInput);
@@ -67,8 +71,15 @@ public final class ViewSignIn extends JPanel
         
         eventDetailsPane = new ViewEventDetails(ModelIn, event_combobox);
         idInput.addActionListener(eventDetailsPane.Get_Display_Listener());
+        eventDetailsPane.addKeyListener(getKeyListener());
         this.add(eventDetailsPane);    
-                
+        
+        //add KeyListener that puts keytyped events into the idInput text box and key-pressed events that are equivalent to return (enter) to submit
+        for(Component c : this.getComponents())
+            if(c != null){
+                c.setFocusable(true);
+                c.addKeyListener(getKeyListener());
+            }
     }
     
     @Override
@@ -171,5 +182,37 @@ public final class ViewSignIn extends JPanel
             }
         });
         t1.start();
+    }
+    
+    private KeyListener getKeyListener()
+    {
+        return new KeyListener(){
+
+            @Override
+            public void keyTyped(KeyEvent e) {
+                String str = idInput.getText();
+                if((int)e.getKeyChar() == 8)
+                {
+                    if(str.length()>0)
+                        idInput.setText(str.substring(0, str.length()-1));
+                }
+                else if((int)e.getKeyChar() == 10) //Line Feed detection
+                    return;
+                else
+                    idInput.setText(idInput.getText() + e.getKeyChar());
+            }
+
+            @Override
+            public void keyPressed(KeyEvent e) {
+                if(e.getKeyCode() == KeyEvent.VK_ENTER)
+                    for(ActionListener l : idInput.getActionListeners())
+                        l.actionPerformed(new ActionEvent(this, ActionEvent.ACTION_PERFORMED, ""));
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                //do nothing
+            }
+        };
     }
 }
