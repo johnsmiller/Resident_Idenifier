@@ -25,7 +25,6 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  */
 public final class ViewEditDatabase extends JPanel
 {
-    private final Model model;
     private final JTextPane currentResCount;
     private final JPanel adminAndUserPanel;
     private final JPanel databasePanel;
@@ -45,10 +44,9 @@ public final class ViewEditDatabase extends JPanel
     private final JButton viewLog;
     //private final JButton clearLog;
     
-    public ViewEditDatabase(Model ModelIn)
+    public ViewEditDatabase()
     {
         super();
-        model = ModelIn;
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         
         addAdmin = new JButton("Add New Admin");
@@ -122,7 +120,7 @@ public final class ViewEditDatabase extends JPanel
 
     private void updateText()
     {
-        currentResCount.setText("Number of Events in database: " + model.eventCount() + "\nNumber of Admins in Database: " + model.powerUserCount(LogEntry.Level.Administrator) + "\nNumber of Users in Database: " + model.powerUserCount(LogEntry.Level.User) + "\nNumber of Residents in Database: " + model.residentCount() + "\nNumber of Buildings in Database: " + model.buildingCount());
+        currentResCount.setText("Number of Events in database: " + Model.getInstance().eventCount() + "\nNumber of Admins in Database: " + Model.getInstance().powerUserCount(LogEntry.Level.Administrator) + "\nNumber of Users in Database: " + Model.getInstance().powerUserCount(LogEntry.Level.User) + "\nNumber of Residents in Database: " + Model.getInstance().residentCount() + "\nNumber of Buildings in Database: " + Model.getInstance().buildingCount());
     }
 
     private ActionListener importActionListener()
@@ -131,8 +129,8 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(model.authenticationModule(LogEntry.Level.Administrator, "Import Residents via CSV file")){
-                    model.csvImport();
+                if(Model.getInstance().authenticationModule(LogEntry.Level.Administrator, "Import Residents via CSV file")){
+                    Model.getInstance().csvImport();
                     updateText();
                 }
             }
@@ -145,7 +143,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.emptyResidentDatabase();
+                Model.getInstance().emptyResidentDatabase();
                 updateText();
             }
         };
@@ -156,7 +154,7 @@ public final class ViewEditDatabase extends JPanel
         return new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.emptyEventDatabase();
+                Model.getInstance().emptyEventDatabase();
                 updateText();
             }
         };
@@ -168,7 +166,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserCreation(LogEntry.Level.Administrator);
+                Model.getInstance().powerUserCreation(LogEntry.Level.Administrator);
                 updateText();
             }
         };
@@ -180,7 +178,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserRemoval(LogEntry.Level.Administrator);
+                Model.getInstance().powerUserRemoval(LogEntry.Level.Administrator);
                 updateText();
             }
         };
@@ -192,7 +190,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserCreation(LogEntry.Level.User);
+                Model.getInstance().powerUserCreation(LogEntry.Level.User);
                 updateText();
             }
         };
@@ -204,7 +202,7 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                model.powerUserRemoval(LogEntry.Level.User);
+                Model.getInstance().powerUserRemoval(LogEntry.Level.User);
                 updateText();
             }
         };
@@ -249,7 +247,7 @@ public final class ViewEditDatabase extends JPanel
 
                 try {
                     Model modelIn = ViewerController.unseal(fileChooserGUI.getSelectedFile(), ViewerController.initializeSealedObject(checkBoxesPanel));
-                    model.mergeDatabase(modelIn, checkAdmins.isSelected(), checkUsers.isSelected(), checkEvents.isSelected(), checkResidents.isSelected());
+                    Model.getInstance().mergeDatabase(modelIn, checkAdmins.isSelected(), checkUsers.isSelected(), checkEvents.isSelected(), checkResidents.isSelected());
                 } catch (        CEEncryptionErrorException | FileNotFoundException ex) {
                     Logger.getLogger(ViewEditDatabase.class.getName()).log(Level.SEVERE, null, ex);
                     //Error Message Please
@@ -291,7 +289,7 @@ public final class ViewEditDatabase extends JPanel
                     return;
                 }
 
-                model.addResident(ID, lastName, firstName, bedSpace);
+                Model.getInstance().addResident(ID, lastName, firstName, bedSpace);
                 updateText();
             }
         };
@@ -302,11 +300,11 @@ public final class ViewEditDatabase extends JPanel
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                if(!model.authenticationModule(LogEntry.Level.Administrator, "View Log"))
+                if(!Model.getInstance().authenticationModule(LogEntry.Level.Administrator, "View Log"))
                     return;
                 
                 String[] ColumnHeaders = {"Date (Year\\Month\\Day Time)", "User", "Level", "Result", "Message",};
-                String[][] RowData = model.getLogData();
+                String[][] RowData = Model.getInstance().getLogData();
                 
                 JTable logTable = new JTable(RowData, ColumnHeaders){ 
                     @Override 

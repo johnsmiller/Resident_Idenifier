@@ -22,6 +22,8 @@ import javax.swing.JTable;
 public final class Model implements Serializable{
     private static final long serialVersionUID = 3;
     
+    private static Model modelInstance;
+    
     //Stored Data Members
     private final Resident_Event_Database residentEventDatabase;
     private final PowerUser_Database powerUserDatabase;   
@@ -32,7 +34,7 @@ public final class Model implements Serializable{
      * 
      * @throws CEAuthenticationFailedException 
      */
-    protected Model() throws CEAuthenticationFailedException
+    private Model() throws CEAuthenticationFailedException
     {
         residentEventDatabase = new Resident_Event_Database();
         powerUserDatabase = new PowerUser_Database();
@@ -41,12 +43,37 @@ public final class Model implements Serializable{
             throw new CEAuthenticationFailedException("Database requires at least 1 Administrator to function");
     }
     
-    protected Model(Object[][] rescued) throws CEAuthenticationFailedException
-    {
+    private Model(Object[][] rescued) throws CEAuthenticationFailedException
+    {            
         Object[] databases = restore(rescued);
         residentEventDatabase = (Resident_Event_Database) databases[0];
         powerUserDatabase = (PowerUser_Database) databases[1];
 
+    }
+    
+    protected static synchronized Model getInstance()
+    {
+        return modelInstance;
+    }
+    
+    protected static synchronized Model setModelInstance() throws CEAuthenticationFailedException
+    {
+        modelInstance = new Model();
+        return modelInstance;
+    }
+    
+    protected static synchronized Model setModelInstance(Object[][] rescued) throws CEAuthenticationFailedException
+    {
+        if(rescued != null)
+            modelInstance = new Model(rescued);
+        return modelInstance;
+    }
+    
+    protected static synchronized Model setModelInstance(Model modelIn)
+    {
+        if(modelIn != null)
+            modelInstance = modelIn;
+        return modelInstance;
     }
     
     

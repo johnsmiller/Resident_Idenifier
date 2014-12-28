@@ -47,7 +47,6 @@ import javax.swing.text.JTextComponent;
  */
 public final class ViewerController implements Runnable{
 
-    private static Model model; //Model that maintains all events, residents, and has all functions to edit them
     private static SealObject sealer; //Object containing current session's password & encryption methods
     private final int AUTOSAVE_DURATION = 120 * 1000; //Time in miliseconds that the program automatically saves the edited model
     
@@ -66,9 +65,9 @@ public final class ViewerController implements Runnable{
     {
         try {
             sealer = initializeSealedObject(null);
-            model = unseal(SEALED_MODEL_FILE_NAME, sealer);
+            Model.setModelInstance(unseal(SEALED_MODEL_FILE_NAME, sealer));
         } catch (FileNotFoundException | NullPointerException ex ) {
-            model = new Model();
+            Model.setModelInstance();
         } finally {
             autosaveThread();
             //model.importEvents();
@@ -126,7 +125,7 @@ public final class ViewerController implements Runnable{
                 if(validateID)
                 {
                     String ID = ViewerController.extractID(obj1.getText());
-                    if(ID == null || !model.checkResident(ID)){
+                    if(ID == null || !Model.getInstance().checkResident(ID)){
                         obj1.setText("");
                         return;
                     }
@@ -362,12 +361,12 @@ public final class ViewerController implements Runnable{
     {
         JTabbedPane tab = new JTabbedPane();
         
-        tab.addTab("Create Event", new ViewCreateEvent(model));
-        tab.addTab("Sign In", new ViewSignIn(model)); //ID field does not have focus on initial start-up. Also does not get focus when JComboBox Selection (fixable?)
-        tab.addTab("Tickets", new ViewTickets(model));
-        tab.addTab("Edit Event", new ViewEditEvent(model));
-        tab.addTab("Resident Details", new ViewResidentDetails(model));
-        tab.addTab("Edit Database", new ViewEditDatabase(model));
+        tab.addTab("Create Event", new ViewCreateEvent());
+        tab.addTab("Sign In", new ViewSignIn()); //ID field does not have focus on initial start-up. Also does not get focus when JComboBox Selection (fixable?)
+        tab.addTab("Tickets", new ViewTickets());
+        tab.addTab("Edit Event", new ViewEditEvent());
+        tab.addTab("Resident Details", new ViewResidentDetails());
+        tab.addTab("Edit Database", new ViewEditDatabase());
         tab.setSelectedIndex(1);
         tab.setVisible(true);
         return tab;
@@ -418,13 +417,13 @@ public final class ViewerController implements Runnable{
      */
     @Override
     public void run() {
-        model.removeAllListeners();
+        Model.getInstance().removeAllListeners();
         saveModel();
     }
     
     protected static synchronized void saveModel() {
         try {
-            seal(model, SEALED_MODEL_FILE_NAME, sealer);
+            seal(Model.getInstance(), SEALED_MODEL_FILE_NAME, sealer);
         } catch (IOException | CEEncryptionErrorException ex) {
             Logger.getLogger(ViewerController.class.getName()).log(Level.SEVERE, null, ex);
         }

@@ -27,7 +27,6 @@ import javax.swing.JTextPane;
 public final class ViewSignIn extends JPanel
 {
     private final long RESET_INTERVAL_DEFAULT_VALUE = 2 * 1000;
-    private final Model model; //Perhaps move away from storing model for security reasons?
     private final JTextField idInput;
     private final JComboBox event_combobox;
     private final ViewEventDetails eventDetailsPane;
@@ -37,12 +36,10 @@ public final class ViewSignIn extends JPanel
     
     private static Long resetThreadID =(long) 0;
 
-    public ViewSignIn(Model ModelIn)
+    public ViewSignIn()
     {
         super();
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-                
-        model = ModelIn;
 
         idInput = new JTextField();                                    
         idInput.setPreferredSize(new Dimension(400,24));//preferred size
@@ -57,7 +54,7 @@ public final class ViewSignIn extends JPanel
         checkinPane.add(suppressRecheckinPrompt);
         this.add(checkinPane);
 
-        event_combobox = model.getEventsJComboBox();
+        event_combobox = Model.getInstance().getEventsJComboBox();
         event_combobox.setPreferredSize(new Dimension(500,23));
         if(event_combobox.getItemCount()>0)
             event_combobox.setSelectedIndex(0);
@@ -69,7 +66,7 @@ public final class ViewSignIn extends JPanel
         messagePane.setFont(new Font(Font.DIALOG, Font.BOLD, 24));
         this.add(messagePane);
         
-        eventDetailsPane = new ViewEventDetails(ModelIn, event_combobox);
+        eventDetailsPane = new ViewEventDetails(event_combobox);
         idInput.addActionListener(eventDetailsPane.Get_Display_Listener());
         eventDetailsPane.addKeyListener(getKeyListener());
         this.add(eventDetailsPane);    
@@ -133,8 +130,8 @@ public final class ViewSignIn extends JPanel
                     
                     Event event = (Event)event_combobox.getSelectedItem();
                     
-                    if(event.validAttendee(id, model, suppressRecheckinPrompt.isSelected())){
-                        setDisplay(model.extractBuilding(id) + " Resident Sign-in Successful", Color.GREEN);
+                    if(event.validAttendee(id, Model.getInstance(), suppressRecheckinPrompt.isSelected())){
+                        setDisplay(Model.getInstance().extractBuilding(id) + " Resident Sign-in Successful", Color.GREEN);
                     }
                 } catch (CEDuplicateAttendeeException ex) { //Why not just extract Exception mssg and save myself all these different exception types?
                     setDisplay("Error: Resident has already signed in for this event", Color.RED); //Black text on red BG hard to see
@@ -144,7 +141,7 @@ public final class ViewSignIn extends JPanel
                 } catch (CEMaximumAttendeesException ex) {
                     setDisplay("There was an error adding this resident. Please try again.", Color.YELLOW);
                 } catch (CEUnpermittedBuildingException ex) {
-                    setDisplay(model.extractBuilding(id) + " Residents not allowed to check into this event", Color.YELLOW);
+                    setDisplay(Model.getInstance().extractBuilding(id) + " Residents not allowed to check into this event", Color.YELLOW);
                     reset_interval = 3 * 1000;
                 } finally {
                     idInput.setText("");

@@ -25,7 +25,6 @@ import javax.swing.JTextPane;
  */
 public final class ViewEventDetails extends JPanel{
     
-    private final Model model;
     private final JComboBox eventCombobox;
     private final JTextPane eventDetail;
     private final JTextPane eventBuildingDetail;
@@ -33,12 +32,10 @@ public final class ViewEventDetails extends JPanel{
     private final JButton viewWaitlist;
     private final JButton addTickets;
     
-    public ViewEventDetails(Model ModelIn, JComboBox EventJComboBox)
+    public ViewEventDetails(JComboBox EventJComboBox)
     {
         super();
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        
-        model = ModelIn;
 
         eventCombobox = EventJComboBox;
         eventCombobox.addActionListener(Get_Display_Listener());
@@ -122,10 +119,10 @@ public final class ViewEventDetails extends JPanel{
                 Event event = (Event) eventCombobox.getSelectedItem();    
                 String[] columnNames = {"Check-in", "ID", "Last Name", "First Name", "Bedspace", "Tickets"};
                 
-                if(event == null || !model.authenticationModule(LogEntry.Level.Administrator, "Event " + (attendeeTable? "Attendee Table" : "Waitinglist Table")  + " viewed: " + event.toString()))
+                if(event == null || !Model.getInstance().authenticationModule(LogEntry.Level.Administrator, "Event " + (attendeeTable? "Attendee Table" : "Waitinglist Table")  + " viewed: " + event.toString()))
                     return;                 
 
-                final JTable checkInTable = (attendeeTable? event.getAttendeesJTable(model) : event.getWaitlistJTable(model));
+                final JTable checkInTable = (attendeeTable? event.getAttendeesJTable(Model.getInstance()) : event.getWaitlistJTable(Model.getInstance()));
                 checkInTable.setAutoCreateRowSorter(true);
                 checkInTable.setPreferredScrollableViewportSize(ViewerController.JTablePopUpSize);
                 checkInTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);

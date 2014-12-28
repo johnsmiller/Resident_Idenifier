@@ -39,7 +39,6 @@ Remove Residents by listing them
 */
 public final class ViewEditEvent extends JPanel
 {
-    private final Model model;
     private final JTextField name;
     private final JComboBox eventCombobox;
     private final JDateChooser dateChooser;
@@ -51,14 +50,12 @@ public final class ViewEditEvent extends JPanel
     private final JComboBox minute;
     private final JTable allowedBuildings;
 
-    public ViewEditEvent(Model ModelIn)
+    public ViewEditEvent()
     {
         super();
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        
-        model = ModelIn;
 
-        eventCombobox = model.getEventsJComboBox();
+        eventCombobox = Model.getInstance().getEventsJComboBox();
         eventCombobox.setMaximumSize(new Dimension(Integer.MAX_VALUE,24));
         eventCombobox.addActionListener(updateFieldsActionListener());//add actionlistener to update name/date/time/maxparticipant fields as selection changes
         this.add(eventCombobox);
@@ -88,7 +85,7 @@ public final class ViewEditEvent extends JPanel
         date_time.add(maxParticipants);
         this.add(date_time);
         
-        allowedBuildings = model.getBuildingJTable();
+        allowedBuildings = Model.getInstance().getBuildingJTable();
         JScrollPane scrollAllowedBuildings = new JScrollPane(allowedBuildings);
         scrollAllowedBuildings.setPreferredSize(new Dimension(50, 150)); //MAGIC NUMBERS
         this.add(scrollAllowedBuildings);
@@ -216,11 +213,11 @@ public final class ViewEditEvent extends JPanel
                             + tempDate.get(Calendar.MINUTE) + " "
                             + tempDate.getDisplayName(Calendar.AM_PM, Calendar.LONG, Locale.US) + ". Continue?";
                     
-                    if(!model.ContainsEvent(event)){
+                    if(!Model.getInstance().ContainsEvent(event)){
                         JOptionPane.showMessageDialog(null, "Error: Event not found", "Event edit error", JOptionPane.ERROR_MESSAGE);
                     }else if(JOptionPane.showConfirmDialog(null, message)!=JOptionPane.YES_OPTION){
                         return;
-                    } else if(!model.authenticationModule(LogEntry.Level.User, "Event updated: " + event.Get_Details())) {
+                    } else if(!Model.getInstance().authenticationModule(LogEntry.Level.User, "Event updated: " + event.Get_Details())) {
                         JOptionPane.showMessageDialog(null, "Authentication Failed", "Event edit Error", JOptionPane.ERROR_MESSAGE);
                     } else{
                         int newMaxParticipants = event.getMaxParticipants();
@@ -232,7 +229,7 @@ public final class ViewEditEvent extends JPanel
                         } catch (NumberFormatException ex){}
                         if(newMaxParticipants<event.getAttendees().size() && newMaxParticipants>0)
                             JOptionPane.showMessageDialog(null, "Error: Max Participants must be equal to or greater than current number of attendees\nCurrently, there are "+ event.getAttendees().size() + " attendees", "Event edit error", JOptionPane.ERROR_MESSAGE);
-                        else if(model.updateEvent(event, name.getText(), tempDate, ((newMaxParticipants<1)? -1 : newMaxParticipants), ViewerController.getBuildings(allowedBuildings))){
+                        else if(Model.getInstance().updateEvent(event, name.getText(), tempDate, ((newMaxParticipants<1)? -1 : newMaxParticipants), ViewerController.getBuildings(allowedBuildings))){
                             JOptionPane.showMessageDialog(null, "Model Successfully updated", "Event Edit Success", JOptionPane.INFORMATION_MESSAGE);
                         } else {
                             JOptionPane.showMessageDialog(null, "Error: An event with this name and date/time already exists", "Event edit error", JOptionPane.ERROR_MESSAGE);
@@ -259,9 +256,9 @@ public final class ViewEditEvent extends JPanel
                 String ID = ViewerController.extractID((String)JOptionPane.showInputDialog(null,"Enter ID to be Removed", "Remove resident from event", JOptionPane.QUESTION_MESSAGE));
                 if(ID == null || !(event.isAttendee(ID) || event.isWaitlisted(ID))) {
                     JOptionPane.showMessageDialog(null, "Invalid ID", "Remove Error", JOptionPane.ERROR_MESSAGE);
-                } else if(!model.authenticationModule(LogEntry.Level.Administrator, "Remove Attendee: " + ID)){
+                } else if(!Model.getInstance().authenticationModule(LogEntry.Level.Administrator, "Remove Attendee: " + ID)){
                     JOptionPane.showMessageDialog(null, "Admin Authentication Failed", "Remove Error", JOptionPane.ERROR_MESSAGE);
-                } else if(!event.removeParticipant(ID, model)) {
+                } else if(!event.removeParticipant(ID, Model.getInstance())) {
                     JOptionPane.showMessageDialog(null, "Resident not removed", "Remove Error", JOptionPane.ERROR_MESSAGE);
                 } else {
                     JOptionPane.showMessageDialog(null, "Resident succesfully removed");
@@ -277,12 +274,12 @@ public final class ViewEditEvent extends JPanel
             @Override
             public void actionPerformed(ActionEvent e) {
                 Event event = (Event)eventCombobox.getSelectedItem();
-                if(model.ContainsEvent(event)){
+                if(Model.getInstance().ContainsEvent(event)){
                     if(JOptionPane.showConfirmDialog(null, event.getName() + 
                             " on " + event.getShortDate() + " " + event.getTime() 
                             + " will be deleted. Continue?")==JOptionPane.YES_OPTION)
                     {
-                        model.removeEvent(event);
+                        Model.getInstance().removeEvent(event);
                         eventCombobox.repaint();
                     }
                     //ELSE MESSAGE PLEASE!!!!!!!!!!!!!!!!

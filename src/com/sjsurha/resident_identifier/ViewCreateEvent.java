@@ -28,7 +28,6 @@ import javax.swing.table.TableModel;
  */
 public final class ViewCreateEvent extends JPanel
 {
-    private final Model model;
     private JTextField name_textfield;
     private JCalendar date_selection;
     private JPanel time_panel;
@@ -36,10 +35,9 @@ public final class ViewCreateEvent extends JPanel
     private JButton submit_button;
     private JTable restrict_buildings;
 
-    public ViewCreateEvent(Model ModelIn)
+    public ViewCreateEvent()
     {
         super(new BorderLayout());
-        model = ModelIn;
         build();
     }
 
@@ -73,7 +71,7 @@ public final class ViewCreateEvent extends JPanel
         time_panel.add(hour);
         time_panel.add(minute);
         
-        restrict_buildings = model.getBuildingJTable();
+        restrict_buildings = Model.getInstance().getBuildingJTable();
         
         JScrollPane scroll_restrict_buildings = new JScrollPane(restrict_buildings);
         scroll_restrict_buildings.setPreferredSize(new Dimension(50, 150)); //MAGIC NUMBERS
@@ -128,7 +126,7 @@ public final class ViewCreateEvent extends JPanel
                 
                 if(max_partic_int > 0) {
                     Event temp_event = new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings), max_partic_int);
-                    if(model.addEvent(temp_event)) {
+                    if(Model.getInstance().addEvent(temp_event)) {
                         clear();
                     } else
                         JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);
@@ -139,14 +137,14 @@ public final class ViewCreateEvent extends JPanel
                     return;
                 }
                 
-                if (!model.authenticationModule(LogEntry.Level.User, "New Event: " + name_textfield.getText())){
+                if (!Model.getInstance().authenticationModule(LogEntry.Level.User, "New Event: " + name_textfield.getText())){
                     JOptionPane.showMessageDialog(null, "Authentication Failed. Event not added.", "Authentication Failure", JOptionPane.ERROR_MESSAGE);
                     return;
                 } 
                 
                 else {
                     Event temp_event = new Event(name_textfield.getText(), cal, ViewerController.getBuildings(restrict_buildings)); 
-                    if(model.addEvent(temp_event)){
+                    if(Model.getInstance().addEvent(temp_event)){
                         clear();
                     } else
                         JOptionPane.showMessageDialog(null, "Error: Conflicting Events. \nTwo events may not have the same date/time and name", "Event Creation Error", JOptionPane.ERROR_MESSAGE);                            

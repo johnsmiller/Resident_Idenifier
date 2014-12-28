@@ -30,16 +30,13 @@ import javax.swing.table.DefaultTableModel;
  */
 public final class ViewTickets extends JPanel
 {
-    private final Model model;
     private final Event_Selection_Pane eventPane;
     private Resident_Selection_Pane residentPane;
 
-    public ViewTickets(Model ModelIn)
+    public ViewTickets()
     {
         super();
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        
-        model = ModelIn;
 
         eventPane = new Event_Selection_Pane();
         residentPane = new Resident_Selection_Pane();
@@ -94,7 +91,7 @@ public final class ViewTickets extends JPanel
 
         private JTable getMyTable()
         {
-            JTable ret = model.getEventsJTable();
+            JTable ret = Model.getInstance().getEventsJTable();
             ret.setAutoCreateRowSorter(true);
             ret.setPreferredScrollableViewportSize(new Dimension(500, 200));
             ret.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
@@ -114,7 +111,7 @@ public final class ViewTickets extends JPanel
                         if((boolean)eventList.getValueAt(i, 0))
                             selectedTickets.addAll(((Event)eventList.getModel().getValueAt(i, 5)).getTickets(includeCheckins.isSelected(), includeWaitlist.isSelected()));
                     }                     
-                    if(selectedTickets.size()>0 && model.authenticationModule(LogEntry.Level.User, "Entered Opportunity Drawing Mode")){
+                    if(selectedTickets.size()>0 && Model.getInstance().authenticationModule(LogEntry.Level.User, "Entered Opportunity Drawing Mode")){
                         Random rand = new Random();
                         randomizeArr(selectedTickets, rand);
                         rebuildResidentPane(rand, selectedTickets);
@@ -237,7 +234,7 @@ public final class ViewTickets extends JPanel
                 public void actionPerformed(ActionEvent e) {
                     //Display JDialog
                     String ID = ((tickets.size()>0)? tickets.get(rand.nextInt(tickets.size())) : null);
-                    String[] choosen = ((ID != null)? model.getNameBedspace(ID) : null);
+                    String[] choosen = ((ID != null)? Model.getInstance().getNameBedspace(ID) : null);
                     if(choosen == null)
                     {
                         JOptionPane.showMessageDialog(null, "No tickets found or invalid resident choosen. Please try again.", "Pick ticket error", JOptionPane.ERROR_MESSAGE);
@@ -248,9 +245,9 @@ public final class ViewTickets extends JPanel
                     if(JOptionPane.showConfirmDialog(null, message, "Random Ticket Drawn", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION)
                         return;
                     else{
-                        DefaultTableModel model = (DefaultTableModel)winnerHistory.getModel();
+                        DefaultTableModel tableModel = (DefaultTableModel)winnerHistory.getModel();
                         Object[] newRow = {"", choosen[1] + " " + choosen[0], choosen[2].substring(0, 3), "", "", "", ""};
-                        model.addRow(newRow);
+                        tableModel.addRow(newRow);
                         winnerHistory.repaint();
                         winners.add(ID);
 
@@ -269,13 +266,13 @@ public final class ViewTickets extends JPanel
 
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    if(model.authenticationModule(LogEntry.Level.Administrator, "View Opportunity Drawing Winners' Full Details")){
+                    if(Model.getInstance().authenticationModule(LogEntry.Level.Administrator, "View Opportunity Drawing Winners' Full Details")){
                         String text = "";
                         Iterator<String> itr = winners.iterator();
                         while(itr.hasNext())
                         {
                             String id = itr.next();
-                            String[] temp = model.getNameBedspace(id);
+                            String[] temp = Model.getInstance().getNameBedspace(id);
                             text += id + " " + temp[1] + " " + temp[0] + " " + temp[2] + "\n";
                         }
                         JTextPane message = new JTextPane();

@@ -19,16 +19,13 @@ import javax.swing.JTextPane;
  */
 public final class ViewResidentDetails extends JPanel
 {
-    private final Model model;
     private final JTextPane textArea;
     private final JButton checkResident;
 
-    public ViewResidentDetails(Model ModelIn)
+    public ViewResidentDetails()
     {
         super();
         this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        
-        model = ModelIn;
 
         textArea = new JTextPane();
         textArea.setEditable(false);
@@ -54,12 +51,12 @@ public final class ViewResidentDetails extends JPanel
                     textArea.setText("Invalid Card");
                     return;
                 }
-                if(!model.authenticationModule(LogEntry.Level.Administrator, "Check Resident Activity: " + ID))
+                if(!Model.getInstance().authenticationModule(LogEntry.Level.Administrator, "Check Resident Activity: " + ID))
                 {
                     return;
                 }
-                if(model.checkResident(ID)){
-                    TreeSet<Event> attended = model.getAttendedEvents(ID);
+                if(Model.getInstance().checkResident(ID)){
+                    TreeSet<Event> attended = Model.getInstance().getAttendedEvents(ID);
                     if(attended.isEmpty())
                         textArea.setText("Is resident\nNo event records");
                     else {
