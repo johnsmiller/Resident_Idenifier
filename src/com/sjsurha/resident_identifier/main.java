@@ -11,7 +11,8 @@ import javax.swing.JOptionPane;
 
 /**
  * @author John Miller
- * @version 1.0 - Initial Distribution
+ * @version 1.1 - Bug fixes
+ * 1.0 - Initial Distribution
  */
 public class main {
 

@@ -227,13 +227,17 @@ public class Resident_Event_Database implements Serializable{
     
     protected String[] getNameBedspace(String ID)
     {
-            if(checkResident(ID))
-            {
-                Resident temp = getResident(ID);
-                String[] ret = {temp.getLast_name(), temp.getFirst_name(), temp.getBedspace()};
-                return ret;
-            }
-            return null;
+        if(checkResident(ID))
+        {
+            Resident temp = getResident(ID);
+            String[] ret = {temp.getLast_name(), temp.getFirst_name(), temp.getBedspace()};
+            return ret;
+        }
+        else
+        {
+            String[] ret = {"Unknown Resident", "Unknown Resident", "Unknown Resident"};
+            return ret;
+        }
     }
     
     private synchronized Resident getResident(String ID)

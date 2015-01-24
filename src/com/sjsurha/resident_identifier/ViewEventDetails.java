@@ -174,9 +174,10 @@ public final class ViewEventDetails extends JPanel{
             public void actionPerformed(ActionEvent e) {
                 if(mssage.getSelectedRow() != -1 && eventCombobox.getSelectedItem() != null) {
                     Event event = (Event) eventCombobox.getSelectedItem();
-                    if(event.ticketWindowPopup((String)mssage.getModel().getValueAt(mssage.getSelectedRow(), idColumn)))
+                    if(event.ticketWindowPopup((String)mssage.getValueAt(mssage.getSelectedRow(), idColumn)))
                     {
-                        
+                        //Refresh window
+                        mssage.getModel().notifyAll();
                     }
                 }
             }

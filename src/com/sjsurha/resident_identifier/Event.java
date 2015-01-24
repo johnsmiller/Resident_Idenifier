@@ -122,13 +122,12 @@ public final class Event implements Comparable<Event>, Serializable, TreeSet_Tab
 
     public void addTickets(String ID, Integer tick)
     {
-        if(tick<0){
-            if(tickets.containsKey(ID) && tickets.get(ID)>=Math.abs(tick))
-                tickets.put(ID, tickets.get(ID)+tick);
+        if(tickets.containsKey(ID)){
+            if((tick<0 && tickets.get(ID)>=Math.abs(tick)) || (tick >=0)){
+                    tickets.put(ID, tickets.get(ID)+tick);
+            }
         }
-        else if(tickets.containsKey(ID))
-            tickets.put(ID, tickets.get(ID)+tick);
-        else
+        else if(tick >= 0)
             tickets.put(ID, tick);
     }
 
@@ -340,8 +339,9 @@ public final class Event implements Comparable<Event>, Serializable, TreeSet_Tab
         return ret;
     }
 
-     protected boolean ticketWindowPopup(String ID)
+     protected boolean ticketWindowPopup(String IdIn)
     {
+        String ID = ViewerController.extractID(IdIn);
         final JTextField ID_Textfield = new JTextField();
         final JTextField Increase_Field = new JTextField();
         Object selected;
@@ -441,10 +441,10 @@ public final class Event implements Comparable<Event>, Serializable, TreeSet_Tab
                 String ID = ViewerController.extractID(ID_Textfield.getText());
                 if(ID == null || !(attendees.containsKey(ID) || waitinglist.containsKey(ID))){
                     ID_Textfield.setText("");
-                    //Display message
+                    JOptionPane.showMessageDialog(null, "Error: ID given did not attend this event.", "Add Tickets Error", JOptionPane.ERROR_MESSAGE); 
                     return;
                 }
-                ID_Textfield.setText(ViewerController.extractID(ID_Textfield.getText()));
+                ID_Textfield.setText(ID);
                 ID_Textfield.setEditable(false);
                 otherTextField.setEditable(true);
                 otherTextField.grabFocus();
