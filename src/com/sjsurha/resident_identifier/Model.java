@@ -432,9 +432,12 @@ public final class Model implements Serializable{
         return powerUserDatabase.getLogData();
     }
     
+    /**
+     * Conflicting information is overwritten with new (importing) data
+     */
     protected void csvImport()
     {
-        HashSet<Resident> newRes = CSV_Import.importCSV(this);
+        HashSet<Resident> newRes = CSV_Import.importCSV();
         for(Resident r : newRes)
         {
             residentEventDatabase.addResident(r);

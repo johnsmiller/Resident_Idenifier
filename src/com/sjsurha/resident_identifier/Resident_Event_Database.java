@@ -214,9 +214,14 @@ public class Resident_Event_Database implements Serializable{
         buildings.removeAllListeners();
     }
 
+    /**
+     * Replaces old values with newly imported if conflict (matching ID) is found
+     * @param resident resident to add to database
+     * @return always returns true
+     */
     protected synchronized boolean addResident(Resident resident) {
         residents.put(resident.getId(), resident);
-        return true;
+        return true; //need return value?
     }
     
     protected synchronized void emptyResidentDatabase()

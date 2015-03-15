@@ -42,7 +42,8 @@ public class CSV_Import {
             "Please select ONE cell that contains a BedSpace (ex: CVA-000)"
         };
     
-    public static HashSet<Resident> importCSV(Model model)
+    
+    public static HashSet<Resident> importCSV()
     {
         HashSet<Resident> ret = new HashSet<>();
         Integer[] values = new Integer[messageStrings.length];
